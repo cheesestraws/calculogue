@@ -1,0 +1,1 @@
+unit die;interface	procedure die;implementation	procedure die;		var			dummy: string;	begin		writeln;		writeln('Press [RETURN] to finish.');		readln(dummy);		halt;	end;end.
