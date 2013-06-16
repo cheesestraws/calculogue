@@ -40,4 +40,4 @@ Five:  I was somewhat hoping to be able to do the \+, \-, \* and \div verbs as t
 stringItem.plus(stringItem2);
 ```
 
-rather than having everything special-cased inside the implementation of \+.  However, since the definition of \+ depends on the run-time type of /both/ sides, I ended up with about as many instanceof checks as before, just smeared about all over the place.  So it made more sense to have it all in one place.
+rather than having everything special-cased inside the implementation of \+.  However, since the definition of \+ depends on the run-time type of /both/ sides and Java only has single dispatch, I ended up with about as many instanceof checks as before, just smeared about all over the place.  So it made more sense to have it all in one place.
