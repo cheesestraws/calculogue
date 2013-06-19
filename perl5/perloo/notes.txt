@@ -1,0 +1,22 @@
+- Perl is /really/ odd.
+- Read perlobj.
+- Accessing parameters by @_.
+- eval/die is peculiar.
+- completely different approach to objects
+- ->isa() vs. ->can()
+
+- Being able to build constructors that return subclass clusters handy
+  but open to misuse
+  
+- Simple DSL for stdlib - see TISBLModule.pm
+- quotelike operators
+- regexes!
+	- make string */string div much easier
+- <> operator
+- startling errors
+
+todo:
+- use confess
+- rewrite \verb
+- fix pascal versions to use float division not int
+- and java to make sure I'm posting float not int on div
