@@ -68,6 +68,8 @@ public class Tokeniser
         while ((chr = rdr.read()) != -1) {
             this.take((char) chr);
         }
+        // take an extra ' ' in case the file doesn't end with one.
+        this.take(' ');
     }
     
 
