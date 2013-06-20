@@ -626,6 +626,22 @@ begin
 end;
 
 
+procedure presentp(c: TAbstractCtxes; inp, outp: TStack);
+var
+	a : TAbstractStackItem;
+begin
+	{ ignore stack element as we never return 1 }
+	a := inp.pop;
+	a.free;
+	outp.push(TIntegerStackItem.Create(0));
+end;
+
+
+procedure load(c: TAbstractCtxes; inp, outp: TStack);
+begin
+	raise EBadParameter.Create('Loadable modules not supported in this interpreter.');
+end;
+
 
 procedure die(c: TAbstractCtxes; inp, outp: TStack);
 begin
@@ -677,6 +693,9 @@ begin
 	vt.defineNative('eq?', @eq_);
 	vt.defineNative('trace=0', @trace0);
 	vt.defineNative('trace=1', @trace1);
+	vt.defineNative('present?', @presentp);
+	vt.defineNative('load', @load);
+
 end;
 
 end.
