@@ -486,6 +486,19 @@ public class Stdlib
             }
         });
         
+        vt.put("present?", new Verb() {
+            public void run(InterpState s, Deque<StackItem> input, Deque<StackItem> output) throws TISBLException{
+                input.pop();
+                output.push(new IntegerItem(0));
+            }
+        });
+        
+        vt.put("load", new Verb() {
+            public void run(InterpState s, Deque<StackItem> input, Deque<StackItem> output) throws TISBLException{
+                throw new BadParameterException("Loadable modules not supported in this interpreter.");
+            }
+        });
+        
     }
     
     
