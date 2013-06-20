@@ -9,6 +9,7 @@ sub parseline {
 	# kill any comments on this line
 	$line =~ s/\s+%.*$//;
 	$line =~ s/^%.*$//;
+	$line =~ s/^\s+//;
 
 	
 	my @elems = split /\s+/, $line;
