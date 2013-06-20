@@ -35,7 +35,7 @@ Once the module is written, you can load and access this from TISBL:
 Things to note
 --------------
 
-One: This is written using the "raw" Perl object-orientation features.  See the perldoc perlobj for the details on this.  Basically, the raw features are quite simple and - if you're only used to Java and so forth - eccentric.  On top of these raw features various other facilities are built as perl modules (such as Moose).  This doesn't use any of those.
+One: This is written using the "raw" Perl object-orientation features.  See the perldoc perlobj for the details on this.  Basically, the raw features are quite simple and - if you're only used to Java and so forth - eccentric.  On top of these raw features various other facilities are built as modules (such as Moose).  This doesn't use any of those.
 
 The idea is that any data structure can be turned into an object by means of associating a reference to it with ("blessing it into") a class.  A class is just a package/namespace.  When a method is called on the blessed reference, the appropriate subroutine for that method is called in the package that the reference is blessed into, and the object is passed as its first parameter.
 
