@@ -1,5 +1,7 @@
 package Stdlib;
 use strict;
+use Module::Load;
+
 use TISBLModule;
 use Stack;
 use base 'TISBLModule';
@@ -326,6 +328,37 @@ verb { "in" } is {
 	my $line = <STDIN>;
 	chomp($line);  # kill cr/lf
 	output->push(SI::Str($line));
+};
+
+
+verb { "present?" } is {
+	my $module = input->pop;
+	die "\\present? needs a string module name, and didn't get one."
+		unless $module->isa("SI::String");
+		
+	# try to load the module, and see what happens!
+	my $modname = "modules::" . $module->val;
+	eval {
+		Module::Load::load($modname);
+	};
+	if ($@) {
+		output->push(SI::Int(0));
+	} else {
+		output->push(SI::Int(1));
+	}
+};
+
+
+verb { "load" } is {
+	my $module = input->pop;
+	die "\\present? needs a string module name, and didn't get one."
+		unless $module->isa("SI::String");
+		
+	my $modname = "modules::" . $module->val;
+	eval {
+		Module::Load::load($modname);
+		$modname->install(state->verbs);
+	};
 };
 
 
