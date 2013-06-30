@@ -1,0 +1,6 @@
+project Tisbl2 is
+
+   for Main use ("tisbl.adb");
+
+end Tisbl2;
+
