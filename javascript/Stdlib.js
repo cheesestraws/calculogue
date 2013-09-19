@@ -374,7 +374,8 @@ stdlib = {
 	},
 	
 	'in': function(ctx, input, output) {
-		alert("unimplemented");
+		var s = ctx.abstractions.input();
+		output.push(SI_String(s));
 	},
 	
 };
