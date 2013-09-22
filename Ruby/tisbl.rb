@@ -3,8 +3,11 @@
 class Context
   def initialize
     @stacks = {}
-    [:p, :s, :c, :i, :o, :e].each do |n|
+    [:p, :s, :c].each do |n|
       @stacks[n] = []
+    end
+    [:i, :o, :e].each do |n|
+      @stacks[n] = nil
     end
   end
   def clone
@@ -22,6 +25,7 @@ class Context
   end
 end
 
+$trace = false
 $verbs = {}
 
 $verbs['_'] = ->(c, i, o) do
@@ -35,7 +39,11 @@ end
 $verbs['+'] = ->(c, i, o) do
   a = c[i].pop
   b = c[i].pop
-  c[o].push b + a
+  if a.is_a? String or b.is_a? String
+    c[o].push b.to_s + a.to_s
+  else
+    c[o].push b + a
+  end
 end
 
 $verbs['-'] = ->(c, i, o) do
@@ -48,6 +56,14 @@ $verbs['*'] = ->(c, i, o) do
   a = c[i].pop
   b = c[i].pop
   c[o].push b * a
+end
+
+$verbs['not'] = ->(c, i, o) do
+  c[o].push bool(c[i].pop == 0.0)
+end
+
+$verbs['in'] = ->(c, i, o) do
+  c[o].push gets
 end
 
 $verbs['out'] = ->(c, i, o) do
@@ -74,17 +90,39 @@ $verbs['mv'] = ->(c, i, o) do
 end
 
 $verbs['eq?'] = ->(c, i, o) do
-  if c[i].pop == c[i].pop
-    c[o].push 1
-  else
-    c[o].push 0
-  end
+  c[o].push bool(c[i].pop == c[i].pop)
+end
+
+$verbs['string?'] = ->(c, i, o) do
+  c[o].push bool(c[i].pop.is_a?(String))
+end
+
+$verbs['number?'] = ->(c, i, o) do
+  c[o].push bool(!c[i].pop.is_a?(String))
+end
+
+$verbs['integer?'] = ->(c, i, o) do
+  c[o].push bool(c[i].pop.is_a?(Fixnum))
+end
+
+$verbs['float?'] = ->(c, i, o) do
+  c[o].push bool(c[i].pop.is_a?(Float))
+end
+
+$verbs['die'] = ->(c, i, o) do
+  raise
 end
 
 $verbs['multipop'] = ->(c, i, o) do
-  c[i].pop.times do
-    c[i].pop
-  end
+  multipop(c, i)
+end
+
+$verbs['present?'] = ->(c, i, o) do
+  c[o].push bool(File.exists?(c[i].pop))
+end
+
+$verbs['load'] = ->(c, i, o) do
+  rasie
 end
 
 $verbs['verb'] = ->(c, i, o) do
@@ -105,12 +143,12 @@ end
 
 $verbs['if'] = ->(c, i, o) do
   block = pop_block(c, i, o)
-  execute block if bool(c[i].pop)
+  execute block unless c[i].pop == 0.0
 end
 
 $verbs['while'] = ->(c, i, o) do
   block = pop_block(c, i, o)
-  while bool(c[i].pop)
+  until c[i].pop == 0.0
     copy = block.clone
     copy[:i] = c[i]
     copy[:o] = c[o]
@@ -119,8 +157,24 @@ $verbs['while'] = ->(c, i, o) do
   end
 end
 
+$verbs['trace=0'] = ->(c, i, o) do
+  $trace = false
+end
+
+$verbs['trace=1'] = ->(c, i, o) do
+  $trace = true
+end
+
 def bool(v)
-  v != 0 and v != 0.0
+  v ? 1 : 0
+end
+
+def multipop(c, i)
+  result = []
+  c[i].pop.times do
+    result.push c[i].pop
+  end
+  result
 end
 
 def pop_block(c, i, o)
@@ -128,9 +182,7 @@ def pop_block(c, i, o)
   block[:i] = c[i]
   block[:o] = c[o]
   block[:e] = c[:c]
-  c[i].pop.times do
-    block[:c].push c[i].pop
-  end
+  block[:c] = multipop(c, i)
   block
 end
 
@@ -139,9 +191,14 @@ def execute(context)
   onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
 
   until context[:c].empty? do
-    token = context[:c].pop
-    case token
-    when /^\\([,.:;]?)([+\-*\w\?]+)([,.:;]?)$/
+    if $trace
+      puts "P [ #{context[:p].join(' ')} ]"
+      puts "S [ #{context[:s].join(' ')} ]"
+      puts "C [ #{context[:c].join(' ')} ]"
+    end
+
+    case context[:c].pop
+    when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
       $verbs[$2].call context, inames[$1], onames[$3]
     when /^([,.:;]?)#(\d+)$/
       context[onames[$1]].push $2.to_i
@@ -150,7 +207,7 @@ def execute(context)
     when /^([,.:;]?)'(.*)$/
       context[onames[$1]].push $2
     else
-      raise "#{token} is blort"
+      raise
     end
   end
 end
