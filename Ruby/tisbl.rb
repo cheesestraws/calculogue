@@ -15,6 +15,7 @@ class Context
     @stacks[:s] = []
     @stacks[:c] = code
   end
+
   def fork(code, i, o)
     copy = Context.new(code)
     copy[:i] = @stacks[i]
@@ -22,11 +23,47 @@ class Context
     copy[:e] = @stacks[:c]
     copy
   end
+
   def [](n)
     @stacks[n]
   end
+
   def []=(n, v)
     @stacks[n] = v
+  end
+
+  def execute
+    inames = { '' => :p, ':' => :s, '.' => :i, ',' => :c, ';' => :e }
+    onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
+
+    until @stacks[:c].empty?
+      if $trace
+        puts "P [ #{@stacks[:p].join(' ')} ]"
+        puts "S [ #{@stacks[:s].join(' ')} ]"
+        puts "C [ #{@stacks[:c].join(' ')} ]"
+      end
+
+      case @stacks[:c].pop
+      when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
+        $verbs[$2].(self, inames[$1], onames[$3])
+      when /^([,.:;]?)#(\d+)$/
+        @stacks[onames[$1]].push $2.to_i
+      when /^([,.:;]?)#(\d+.\d+)$/
+        @stacks[onames[$1]].push $2.to_f
+      when /^([,.:;]?)'(.*)$/
+        @stacks[onames[$1]].push $2
+      else
+        raise
+      end
+    end
+  end
+
+  def multipop(i)
+    result = []
+    @stacks[i].pop.times do
+      result.push @stacks[i].pop
+    end
+    result
   end
 end
 
@@ -38,51 +75,17 @@ def number?(v)
   v.is_a?(Fixnum) or v.is_a?(Float)
 end
 
-def multipop(c, i)
-  result = []
-  c[i].pop.times do
-    result.push c[i].pop
-  end
-  result
-end
-
-def execute(context)
-  inames = { '' => :p, ':' => :s, '.' => :i, ',' => :c, ';' => :e }
-  onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
-
-  until context[:c].empty?
-    if $trace
-      puts "P [ #{context[:p].join(' ')} ]"
-      puts "S [ #{context[:s].join(' ')} ]"
-      puts "C [ #{context[:c].join(' ')} ]"
-    end
-
-    case context[:c].pop
-    when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
-      $verbs[$2].(context, inames[$1], onames[$3])
-    when /^([,.:;]?)#(\d+)$/
-      context[onames[$1]].push $2.to_i
-    when /^([,.:;]?)#(\d+.\d+)$/
-      context[onames[$1]].push $2.to_f
-    when /^([,.:;]?)'(.*)$/
-      context[onames[$1]].push $2
-    else
-      raise
-    end
-  end
-end
-
 if ARGV.empty?
   root = Context.new
   loop do
     print '> '
     root[:c].concat gets.gsub(/%.*$/, '').split.reverse
-    execute root
+    root.execute
     puts
   end
 else
   File.open(ARGV[0]) do |file|
-    execute Context.new(file.read.gsub(/%.*$/, '').split.reverse)
+    Context.new(file.read.gsub(/%.*$/, '').split.reverse).execute
   end
 end
 
