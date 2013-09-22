@@ -9,18 +9,17 @@ $verbs = {}
 require 'stdlib'
 
 class Context
-  def initialize
+  def initialize(code = [])
     @stacks = {}
-    [:p, :s, :c].each do |n|
-      @stacks[n] = []
-    end
+    @stacks[:p] = []
+    @stacks[:s] = []
+    @stacks[:c] = code
   end
   def fork(code, i, o)
-    copy = Context.new
+    copy = Context.new(code)
     copy[:i] = @stacks[i]
     copy[:o] = @stacks[o]
     copy[:e] = @stacks[:c]
-    copy[:c] = code
     copy
   end
   def [](n)
@@ -73,9 +72,8 @@ def execute(context)
   end
 end
 
-root = Context.new
-
 if ARGV.empty?
+  root = Context.new
   loop do
     print '> '
     root[:c].concat gets.gsub(/%.*$/, '').split.reverse
@@ -84,8 +82,7 @@ if ARGV.empty?
   end
 else
   File.open(ARGV[0]) do |file|
-    root[:c] = file.read.gsub(/%.*$/, '').split.reverse
-    execute root
+    execute Context.new(file.read.gsub(/%.*$/, '').split.reverse)
   end
 end
 
