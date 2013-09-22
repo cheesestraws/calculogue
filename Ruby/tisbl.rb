@@ -151,7 +151,7 @@ $verbs['present?'] = ->(c, i, o) do
 end
 
 $verbs['load'] = ->(c, i, o) do
-  source c[i].pop
+  require c[i].pop
 end
 
 $verbs['verb'] = ->(c, i, o) do
@@ -228,23 +228,19 @@ def execute(context)
   end
 end
 
-def source(path)
-  File.open(path) do |file|
-    context = Context.new
-    context[:c] = file.read.gsub(/%.*$/, '').split.reverse
-    execute context
-  end
-end
+root = Context.new
 
 if ARGV.empty?
-  context = Context.new
   loop do
     print '> '
-    context[:c].concat gets.gsub(/%.*$/, '').split.reverse
-    execute context
+    root[:c].concat gets.gsub(/%.*$/, '').split.reverse
+    execute root
     puts
   end
 else
-  source ARGV[0]
+  File.open(ARGV[0]) do |file|
+    root[:c] = file.read.gsub(/%.*$/, '').split.reverse
+    execute root
+  end
 end
 
