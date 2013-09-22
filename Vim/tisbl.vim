@@ -26,7 +26,6 @@ hi def link tisblNumber       Number
 hi def link tisblWord         String
 hi def link tisblVerb         Identifier
 hi def link tisblStack        StorageClass
-hi def link tisblLiteralStack StorageClass
 hi def link tisblComment      Comment
 hi def link tisblCommentTodo  Todo
 
