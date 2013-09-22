@@ -236,7 +236,15 @@ def source(path)
   end
 end
 
-ARGV.each do |path|
-  source path
+if ARGV.empty?
+  context = Context.new
+  loop do
+    print '> '
+    context[:c].concat gets.gsub(/%.*$/, '').split.reverse
+    execute context
+    puts
+  end
+else
+  source ARGV[0]
 end
 
