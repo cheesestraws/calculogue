@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# encoding: UTF-8
 
 class Context
   def initialize
@@ -6,15 +7,13 @@ class Context
     [:p, :s, :c].each do |n|
       @stacks[n] = []
     end
-    [:i, :o, :e].each do |n|
-      @stacks[n] = nil
-    end
   end
-  def clone
+  def fork(code, i, o)
     copy = Context.new
-    @stacks.each do |k,v|
-      copy[k] = v.clone
-    end
+    copy[:i] = @stacks[i]
+    copy[:o] = @stacks[o]
+    copy[:e] = @stacks[:c]
+    copy[:c] = code
     copy
   end
   def [](n)
@@ -29,7 +28,7 @@ $trace = false
 $verbs = {}
 
 $verbs['_'] = ->(c, i, o) do
-  c[o].push c[i].pop + ' '
+  c[o].push c[i].pop.to_s + ' '
 end
 
 $verbs['n'] = ->(c, i, o) do
@@ -39,23 +38,53 @@ end
 $verbs['+'] = ->(c, i, o) do
   a = c[i].pop
   b = c[i].pop
-  if a.is_a? String or b.is_a? String
-    c[o].push b.to_s + a.to_s
-  else
+  if number?(a) and number?(b)
     c[o].push b + a
+  else
+    c[o].push b.to_s + a.to_s
   end
 end
 
 $verbs['-'] = ->(c, i, o) do
   a = c[i].pop
   b = c[i].pop
-  c[o].push b - a
+  if number?(a) and number?(b)
+    c[o].push b - a
+  elsif number?(a) and not number?(b)
+    c[o].push b[0, b.length - a.round]
+  elsif not number?(a) and number?(b)
+    c[o].push a[0, a.length - b.round]
+  else
+    c[o].push b.delete(a)
+  end
 end
 
 $verbs['*'] = ->(c, i, o) do
   a = c[i].pop
   b = c[i].pop
-  c[o].push b * a
+  if number?(a) and number?(b)
+    c[o].push b * a
+  elsif number?(a) and not number?(b)
+    c[o].push b * a + b[0, (b.length * (a - a.floor)).round]
+  elsif not number?(a) and number?(b)
+    c[o].push a * b + a[0, (a.length * (b - b.floor)).round]
+  else
+    c[o].push b.gsub(a[0], a)
+  end
+end
+
+$verbs['div'] = ->(c, i, o) do
+  a = c[i].pop
+  b = c[i].pop
+  if number?(a) and number?(b)
+    c[o].push b.to_f / a.to_f
+  elsif number?(a) and not number?(b)
+    c[o].push b[0, (b.length / a.to_f).round]
+  elsif not number?(a) and number?(b)
+    c[o].push a[0, (a.length / b.to_f).round]
+  else
+    c[o].push b.gsub(a, a[0])
+  end
 end
 
 $verbs['not'] = ->(c, i, o) do
@@ -98,7 +127,7 @@ $verbs['string?'] = ->(c, i, o) do
 end
 
 $verbs['number?'] = ->(c, i, o) do
-  c[o].push bool(!c[i].pop.is_a?(String))
+  c[o].push bool(number?(c[i].pop))
 end
 
 $verbs['integer?'] = ->(c, i, o) do
@@ -110,7 +139,7 @@ $verbs['float?'] = ->(c, i, o) do
 end
 
 $verbs['die'] = ->(c, i, o) do
-  raise
+  exit
 end
 
 $verbs['multipop'] = ->(c, i, o) do
@@ -122,38 +151,30 @@ $verbs['present?'] = ->(c, i, o) do
 end
 
 $verbs['load'] = ->(c, i, o) do
-  rasie
+  source c[i].pop
 end
 
 $verbs['verb'] = ->(c, i, o) do
   name = c[i].pop
-  block = pop_block(c, i, o)
+  code = multipop(c, i)
   $verbs[name] = ->(c, i, o) do
-    copy = block.clone
-    copy[:i] = c[i]
-    copy[:o] = c[o]
-    copy[:e] = c[:c]
-    execute copy
+    execute c.fork(code.clone, i, o)
   end
 end
 
 $verbs['exec'] = ->(c, i, o) do
-  execute pop_block(c, i, o)
+  execute c.fork(multipop(c, i), i, o)
 end
 
 $verbs['if'] = ->(c, i, o) do
-  block = pop_block(c, i, o)
-  execute block unless c[i].pop == 0.0
+  code = multipop(c, i)
+  execute c.fork(code, i, o) unless c[i].pop == 0.0
 end
 
 $verbs['while'] = ->(c, i, o) do
-  block = pop_block(c, i, o)
+  code = multipop(c, i)
   until c[i].pop == 0.0
-    copy = block.clone
-    copy[:i] = c[i]
-    copy[:o] = c[o]
-    copy[:e] = c[:c]
-    execute copy
+    execute c.fork(code.clone, i, o)
   end
 end
 
@@ -169,6 +190,10 @@ def bool(v)
   v ? 1 : 0
 end
 
+def number?(v)
+  v.is_a?(Fixnum) or v.is_a?(Float)
+end
+
 def multipop(c, i)
   result = []
   c[i].pop.times do
@@ -177,20 +202,11 @@ def multipop(c, i)
   result
 end
 
-def pop_block(c, i, o)
-  block = Context.new
-  block[:i] = c[i]
-  block[:o] = c[o]
-  block[:e] = c[:c]
-  block[:c] = multipop(c, i)
-  block
-end
-
 def execute(context)
   inames = { '' => :p, ':' => :s, '.' => :i, ',' => :c, ';' => :e }
   onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
 
-  until context[:c].empty? do
+  until context[:c].empty?
     if $trace
       puts "P [ #{context[:p].join(' ')} ]"
       puts "S [ #{context[:s].join(' ')} ]"
@@ -199,7 +215,7 @@ def execute(context)
 
     case context[:c].pop
     when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
-      $verbs[$2].call context, inames[$1], onames[$3]
+      $verbs[$2].(context, inames[$1], onames[$3])
     when /^([,.:;]?)#(\d+)$/
       context[onames[$1]].push $2.to_i
     when /^([,.:;]?)#(\d+.\d+)$/
@@ -212,16 +228,15 @@ def execute(context)
   end
 end
 
-def source(text)
-  text = text.gsub(/%.*$/, '')
-  context = Context.new
-  context[:c] = text.split.reverse
-  execute context
+def source(path)
+  File.open(path) do |file|
+    context = Context.new
+    context[:c] = file.read.gsub(/%.*$/, '').split.reverse
+    execute context
+  end
 end
 
-ARGV.each do |arg|
-  File.open(arg) do |file|
-    source file.read
-  end
+ARGV.each do |path|
+  source path
 end
 
