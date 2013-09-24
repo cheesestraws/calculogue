@@ -45,6 +45,3 @@ operations.  The stacks are stored in a map indexed by symbols:
  * `:o` The reference to the output stack
  * `:e` The reference to the execution stack of the parent context
 
-Loaded modules are executed with their own root context but sharing the verb
-table with the module that called `\load`.
-

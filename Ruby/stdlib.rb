@@ -116,7 +116,7 @@ $verbs['die'] = ->(c, i, o) do
 end
 
 $verbs['multipop'] = ->(c, i, o) do
-  multipop(c, i)
+  c.multipop(i)
 end
 
 $verbs['present?'] = ->(c, i, o) do
@@ -129,25 +129,25 @@ end
 
 $verbs['verb'] = ->(c, i, o) do
   name = c[i].pop
-  code = multipop(c, i)
+  code = c.multipop(i)
   $verbs[name] = ->(c, i, o) do
-    execute c.fork(code.clone, i, o)
+    c.fork(code.clone, i, o).execute
   end
 end
 
 $verbs['exec'] = ->(c, i, o) do
-  execute c.fork(multipop(c, i), i, o)
+  c.fork(c.multipop(i), i, o).execute
 end
 
 $verbs['if'] = ->(c, i, o) do
-  code = multipop(c, i)
-  execute c.fork(code, i, o) unless c[i].pop == 0.0
+  code = c.multipop(i)
+  c.fork(code, i, o).execute unless c[i].pop == 0.0
 end
 
 $verbs['while'] = ->(c, i, o) do
-  code = multipop(c, i)
+  code = c.multipop(i)
   until c[i].pop == 0.0
-    execute c.fork(code.clone, i, o)
+    c.fork(code.clone, i, o).execute
   end
 end
 
