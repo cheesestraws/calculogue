@@ -1,0 +1,327 @@
+LIBRARY "utils"
+
+REM
+REM Stack primitives: Push
+REM
+
+DEFPROCpushS(stack$, ctx%, string$)
+	LOCAL top%
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) + 1
+		pri_top%(ctx%) = top%
+		pri_types%(ctx%, top%-1) = str_type%: REM mark it as a string
+		pri_str$(ctx%, top%-1) = string$
+	WHEN "s":
+		top% = sec_top%(ctx%) + 1
+		sec_top%(ctx%) = top%
+		sec_types%(ctx%, top%-1) = str_type%: REM mark it as a string
+		sec_str$(ctx%, top%-1) = string$ 
+	WHEN "e":
+		top% = exec_top%(ctx%) + 1
+		exec_top%(ctx%) = top%
+		exec_types%(ctx%, top%-1) = str_type%: REM mark it as a string
+		exec_str$(ctx%, top%-1) = string$
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+ENDPROC
+
+DEFPROCpushI(stack$, ctx%, int%)
+	LOCAL top%
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) + 1
+		pri_top%(ctx%) = top%
+		pri_types%(ctx%, top%-1) = int_type%: REM mark it as a string
+		pri_int%(ctx%, top%-1) = int%
+	WHEN "s":
+		top% = sec_top%(ctx%) + 1
+		sec_top%(ctx%) = top%
+		sec_types%(ctx%, top%-1) = int_type%: REM mark it as a string
+		sec_int%(ctx%, top%-1) = int%
+	WHEN "e":
+		top% = exec_top%(ctx%) + 1
+		exec_top%(ctx%) = top%
+		exec_types%(ctx%, top%-1) = int_type%: REM mark it as a string
+		exec_int%(ctx%, top%-1) = int%
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+ENDPROC
+
+DEFPROCpushF(stack$, ctx%, flt)
+	LOCAL top%
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) + 1
+		pri_top%(ctx%) = top%
+		pri_types%(ctx%, top%-1) = flt_type%: REM mark it as a string
+		pri_flt(ctx%, top%-1) = flt
+	WHEN "s":
+		top% = sec_top%(ctx%) + 1
+		sec_top%(ctx%) = top%
+		sec_types%(ctx%, top%-1) = flt_type%: REM mark it as a string
+		sec_flt(ctx%, top%-1) = flt
+	WHEN "e":
+		top% = exec_top%(ctx%) + 1
+		exec_top%(ctx%) = top%
+		exec_types%(ctx%, top%-1) = flt_type%: REM mark it as a string
+		exec_flt(ctx%, top%-1) = flt
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+ENDPROC
+
+
+
+REM
+REM Stack primitives: count
+REM Returns the number of items in the stack
+REM
+
+DEFFNcount(stack$, ctx%)
+	LOCAL top%
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%)
+	WHEN "s":
+		top% = sec_top%(ctx%)
+	WHEN "e":
+		top% = exec_top%(ctx%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=top%
+
+
+
+REM 
+REM Stack primitive: typeOf
+REM Returns the type of the item at index idx from the bottom of the stack
+REM
+
+DEFFNtypeOf(stack$, ctx%, idx%)
+	LOCAL type%
+	CASE stack$ OF
+	WHEN "p":
+		type% = pri_types%(ctx%, idx%)    
+	WHEN "s":
+		type% = sec_types%(ctx%, idx%)    
+	WHEN "e":
+		type% = exec_types%(ctx%, idx%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=type%
+
+
+
+REM
+REM Stack utility: typeOfTop
+REM Returns the type of the head of the stack
+REM
+
+DEFFNtypeOfTop(stack$, ctx%)=FNtypeOf(stack$, ctx%, FNcount(stack$, ctx%) - 1)
+
+
+
+REM
+REM Stack primitive: pop
+REM
+
+DEFFNpopS(stack$, ctx%)
+	LOCAL type%, str$, top%
+	
+	REM We're trying to pop a string, check that's what we've got
+	type%=FNtypeOfTop(stack$, ctx%)
+	IF type%<>str_type% THEN
+		PRINT "Error: expected string on stack "; stack$; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	REM Now pop it
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) - 1
+		pri_top%(ctx%) = top%
+		str$ = pri_str$(ctx%, top%)
+	WHEN "s":
+		top% = sec_top%(ctx%) - 1
+		sec_top%(ctx%) = top%
+		str$ = sec_str$(ctx%, top%)
+	WHEN "e":
+		top% = exec_top%(ctx%) - 1
+		exec_top%(ctx%) = top%
+		str$ = exec_str$(ctx%, top%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=str$
+
+DEFFNpopI(stack$, ctx%)
+	LOCAL type%, int%, top%
+
+	REM We're trying to pop an int, check that's what we've got
+	type%=FNtypeOfTop(stack$, ctx%)
+	IF type%<>int_type% THEN
+		PRINT "Error: expected int on stack "; stack$; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	REM Now pop it
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) - 1
+		pri_top%(ctx%) = top%
+		int% = pri_int%(ctx%, top%)
+	WHEN "s":
+		top% = sec_top%(ctx%) - 1
+		sec_top%(ctx%) = top%
+		int% = sec_int%(ctx%, top%)
+	WHEN "e":
+		top% = exec_top%(ctx%) - 1
+		exec_top%(ctx%) = top%
+		int% = exec_int%(ctx%, top%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=int%
+
+DEFFNpopF(stack$, ctx%)
+	LOCAL type%, flt, top%
+
+	REM We're trying to pop a float, check that's what we've got
+	type%=FNtypeOfTop(stack$, ctx%)
+	IF type%<>flt_type% THEN
+		PRINT "Error: expected float on stack "; stack$; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	REM Now pop it
+	CASE stack$ OF
+	WHEN "p":
+		top% = pri_top%(ctx%) - 1
+		pri_top%(ctx%) = top%
+		flt = pri_flt(ctx%, top%)
+	WHEN "s":
+		top% = sec_top%(ctx%) - 1
+		sec_top%(ctx%) = top%
+		flt = sec_flt(ctx%, top%)
+	WHEN "e":
+		top% = exec_top%(ctx%) - 1
+		exec_top%(ctx%) = top%
+		flt = exec_flt(ctx%, top%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=flt
+
+
+
+REM
+REM Stack primitive: itemAt
+REM Returns the item at index n
+REM
+
+DEFFNitemAtS(stack$, ctx%, idx%)
+	LOCAL type%, str$
+
+	type%=FNtypeOf(stack$, ctx%, idx%)
+	IF type%<>str_type% THEN
+		PRINT "Error: expected string on stack "; stack$; " idx "; idx%; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	CASE stack$ OF
+	WHEN "p":
+		str$ = pri_str$(ctx%, idx%)
+	WHEN "s":
+		str$ = sec_str$(ctx%, idx%)
+	WHEN "e":
+		str$ = exec_str$(ctx%, idx%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=str$
+
+DEFFNitemAtI(stack$, ctx%, idx%)
+	LOCAL type%, int%
+
+	type%=FNtypeOf(stack$, ctx%, idx%)
+	IF type%<>int_type% THEN
+		PRINT "Error: expected int on stack "; stack$; " idx "; idx%; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	CASE stack$ OF
+	WHEN "p":
+		int% = pri_int%(ctx%, idx%)
+	WHEN "s":
+		int% = sec_int%(ctx%, idx%)
+	WHEN "e":
+		int% = exec_int%(ctx%, idx%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=int%
+
+DEFFNitemAtF(stack$, ctx%, idx%)
+	LOCAL type%, flt
+
+	type%=FNtypeOf(stack$, ctx%, idx%)
+	IF type%<>flt_type% THEN
+		PRINT "Error: expected float on stack "; stack$; " idx "; idx%; " at ctx "; ctx%; " but got "; FNtypeToString(type%)
+		STOP
+	ENDIF
+
+	CASE stack$ OF
+	WHEN "p":
+		flt = pri_flt(ctx%, idx%)
+	WHEN "s":
+		flt = sec_flt(ctx%, idx%)
+	WHEN "e":
+		flt = exec_flt(ctx%, idx%)
+	OTHERWISE
+		PRINT "Bad stackname": STOP
+	ENDCASE
+=flt
+
+
+
+REM
+REM Stack utility: tracing
+REM
+
+DEFPROCtraceItem(stack$, ctx%, idx%)
+	LOCAL type%, int%, str$, flt
+	type%=FNtypeOf(stack$, ctx%, idx%)
+	PRINT FNtypeToTraceString(type%); ".";
+	CASE type% OF
+	WHEN null_type%:
+		PRINT "nul";
+	WHEN int_type%:
+		int% = FNitemAtI(stack$, ctx%, idx%)
+		PRINT STR$(int%);
+	WHEN flt_type%:
+		flt = FNitemAtF(stack$, ctx%, idx%)
+		PRINT STR$(flt);
+	WHEN str_type%:
+		str$ = FNitemAtS(stack$, ctx%, idx%)
+		PRINT str$;
+	ENDCASE
+	PRINT " ";
+ENDPROC
+
+DEFPROCtraceStack(stack$, ctx%)
+	LOCAL top%, I%
+	top% = FNcount(stack$, ctx%) - 1
+
+	PRINT stack$; ": ";
+	IF top% >= 0 THEN
+		FOR I%=top% TO 0 STEP -1
+			PROCtraceItem(stack$, ctx%, I%)
+		NEXT I%
+	ENDIF
+	PRINT
+ENDPROC

@@ -1,0 +1,519 @@
+DEFPROCstdout(in$, out$)
+	LOCAL str$
+	PRINT FNsrPopAsString(in$);
+ENDPROC
+
+DEFPROCstdin(in$, out$)
+	LOCAL str$
+	INPUT LINE "" str$: REM Suppress ? prompt
+	PROCsrPushS(out$, str$)
+ENDPROC
+
+DEFPROCstdexec(in$, out$)
+	LOCAL count%
+	REM pop the number of tokens to execute
+	count%=FNsrPopI(in$)
+	
+	REM create some swap space for the stack
+	LOCAL swap$(), I%
+	DIM swap$(count% - 1)
+	
+	REM Now copy the data in *in reverse*.  In the other languages our
+	REM Stack datatype does this for us.
+	FOR I% = 0 TO count% - 1
+		swap$(I%) = FNsrPopS(in$)
+	NEXT I%
+
+	REM Now, NOW we need to create a new context and run it
+	PROCstartCtxWithExec(in$, out$, swap$())
+	PROCrunCtx
+	PROCstopCtx
+ENDPROC
+
+DEFPROCstdverb(in$, out$)
+	LOCAL count%, name$
+	REM pop the name of the verb
+	name$=FNsrPopS(in$)
+
+	REM pop the number of tokens to execute
+	count%=FNsrPopI(in$)
+
+	verb_top%(next_verb%) = count%
+	verb_name$(next_verb%) = name$
+
+	REM Now copy the data in *in reverse*.  In the other languages our
+	REM Stack datatype does this for us.
+	FOR I% = 0 TO count% - 1
+		verb_table$(next_verb%, I%) = FNsrPopS(in$)
+	NEXT I%
+
+	next_verb% += 1
+ENDPROC
+
+
+DEFPROCstdif(in$, out$)
+	REM This is very similar to \exec, but pops a condition at the end
+	REM to see whether to run the constructed context or not
+	LOCAL count%, condition, dummy$
+	REM pop the number of tokens to execute
+	count%=FNsrPopI(in$)
+
+	REM create some swap space for the stack
+	LOCAL swap$(), I%
+	DIM swap$(count% - 1)
+
+	REM Now copy the data in *in reverse*.  In the other languages our
+	REM Stack datatype does this for us.
+	FOR I% = 0 TO count% - 1
+		swap$(I%) = FNsrPopS(in$)
+	NEXT I%
+
+	CASE FNsrTypeOfTop(in$) OF
+	WHEN int_type%:
+		condition = FNsrPopI(in$)
+	WHEN flt_type%:
+		condition = INT(FNsrPopF(in$))
+	WHEN str_type%:
+		REM we did define dummy$ here but BASIC V objects to
+		REM LOCALs being after a FOR loop
+		condition = 0
+		dummy$ = FNsrPopS(in$)
+	ENDCASE
+
+	IF condition <> 0 THEN
+		PROCstartCtxWithExec(in$, out$, swap$())
+		PROCrunCtx
+		PROCstopCtx
+	ENDIF
+ENDPROC
+
+DEFPROCstdwhile(in$, out$)
+	REM This is very similar to \if, but *repeatedly* pops the condition 
+	REM at the end to see whether to run the constructed context or not
+	LOCAL count%, dummy$
+	LOCAL endloop%, condition
+
+	REM pop the number of tokens to execute
+	count%=FNsrPopI(in$)
+
+	REM create some swap space for the stack
+	LOCAL swap$(), I%
+	DIM swap$(count% - 1)
+
+	REM Now copy the data in *in reverse*.  In the other languages our
+	REM Stack datatype does this for us.
+	FOR I% = 0 TO count% - 1
+		swap$(I%) = FNsrPopS(in$)
+	NEXT I%
+
+	REPEAT
+		CASE FNsrTypeOfTop(in$) OF
+		WHEN int_type%:
+			condition = FNsrPopI(in$)
+		WHEN flt_type%:
+			condition = INT(FNsrPopF(in$))
+		WHEN str_type%:
+			condition = 0 
+			dummy$ = FNsrPopS(in$)
+		ENDCASE
+
+		IF condition <> 0 THEN
+			PROCstartCtxWithExec(in$, out$, swap$())
+			PROCrunCtx
+			PROCstopCtx
+		ELSE
+			endloop%=1
+		ENDIF
+	UNTIL endloop%=1
+ENDPROC
+
+DEFPROCstdnot(in$, out$)
+	LOCAL condition
+	CASE FNsrTypeOfTop(in$) OF
+	WHEN int_type%:
+		condition = FNsrPopI(in$)
+	WHEN flt_type%:
+		condition = INT(FNsrPopF(in$))
+	WHEN str_type%:
+		LOCAL dummy$
+		condition = 0 
+		dummy$ = FNsrPopS(in$)
+	ENDCASE
+
+	IF condition <> 0 THEN
+		PROCsrPushI(out$,0)
+	ELSE
+		PROCsrPushI(out$, 1)
+	ENDIF
+ENDPROC
+
+DEFPROCstdswap(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+
+	PROCsrAutopush(out$, type1%, int1%, flt1, str1$)
+	PROCsrAutopush(out$, type2%, int2%, flt2, str2$)
+ENDPROC
+
+DEFPROCstddup(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	PROCsrAutopush(out$, type1%, int1%, flt1, str1$)
+	PROCsrAutopush(out$, type1%, int1%, flt1, str1$)
+ENDPROC
+
+DEFPROCstdrm(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+ENDPROC
+
+DEFPROCstdmv(in$,out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	PROCsrAutopush(out$, type1%, int1%, flt1, str1$)
+ENDPROC
+
+DEFPROCstdmultipop(in$, out$)
+	LOCAL count%, I%
+	LOCAL type1%, int1%, flt1, str1$
+
+	count% = FNsrPopI(in$)
+	FOR I%=1 TO count%
+		PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+		PROCsrAutopush(out$, type1%, int1%, flt1, str1$)
+	NEXT I%
+ENDPROC
+
+DEFPROCstdplus(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+
+	IF type1%=str_type% OR type2%=str_type% THEN
+		LOCAL s1$, s2$
+		s1$ = FNstringValueOf(type1%, int1%, flt1, str1$)
+		s2$ = FNstringValueOf(type2%, int2%, flt2, str2$)
+		PROCsrPushS(out$, s1$ + s2$)
+		ENDPROC
+	ENDIF
+
+	IF type1%=flt_type% OR type2%=flt_type% THEN
+		LOCAL f1, f2
+		f1 = FNfloatValueOf(type1%, int1%, flt1, str1$)
+		f2 = FNfloatValueOf(type2%, int2%, flt2, str2$)
+		PROCsrPushF(out$, f1+f2)
+		ENDPROC
+	ENDIF
+
+	REM We know both are ints, so short-cut proceedings :-)
+	PROCsrPushI(out$, int1% + int2%)
+ENDPROC
+
+REM \- and friends
+
+DEFFNsub_si(str$, int%)=LEFT$(str$, LEN(str$) - int%)
+DEFFNsub_ss(haystack$, needle$)
+	LOCAL buf$, I%, char$
+	FOR I%=1 TO LEN(haystack$)
+		char$=MID$(haystack$, I%, 1)
+		IF INSTR(needle$, char$) = 0 THEN buf$ += char$
+	NEXT I%
+=buf$
+
+DEFPROCstdminus(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+
+	IF type1% = int_type% AND type2% = int_type% THEN
+		PROCsrPushI(out$, int1% - int2%)
+		ENDPROC
+	ENDIF
+
+	IF type1% = str_type% AND type2% = int_type% THEN
+		PROCsrPushS(out$, FNsub_si(str1$, int2%))
+		ENDPROC
+	ENDIF
+
+	IF type1% = int_type% AND type2% = str_type% THEN
+		PROCsrPushS(out$, FNsub_si(str2$, int1%))
+		ENDPROC
+	ENDIF
+
+	IF type1% = str_type% AND type2% = flt_type% THEN
+		PROCsrPushS(out$, FNsub_si(str1$, INT(flt2)))
+		ENDPROC
+	ENDIF
+
+	IF type1% = flt_type% AND type2% = str_type% THEN
+		PROCsrPushS(out$, FNsub_si(str2$, INT(flt1)))
+		ENDPROC
+	ENDIF
+
+	IF type1% = str_type% AND type2% = str_type% THEN
+		PROCsrPushS(out$, FNsub_ss(str1$, str2$))
+	ENDIF
+
+	REM one must be a float now!
+
+	flt1 = FNfloatValueOf(type1%, int1%, flt1, str1$)
+	flt2 = FNfloatValueOf(type2%, int2%, flt2, str2$)
+	PROCsrPushF(out$, flt1 - flt2)
+ENDPROC
+
+REM Oh dear, multiplication
+
+DEFFNmul_sf(str$, flt)
+	LOCAL count, buf$
+	buf$ = ""
+	count = flt
+
+	WHILE count >= 1
+		count -= 1
+		buf$ += str$	
+	ENDWHILE
+
+	IF count > 1/LEN(str$) THEN
+		LOCAL chars%
+		chars% = INT(LEN(str$) * count)
+		buf$ += LEFT$(buf$, chars%)
+	ENDIF
+=buf$
+
+DEFFNmul_ss(s$, expand$)
+	IF expand$ = "" THEN =s$
+
+	LOCAL buf$, char$, I%
+	char$ = LEFT$(expand$, 1)
+	FOR I%=1 TO LEN(s$)
+		IF MID$(s$, I%, 1) = char$ THEN
+			buf$ += expand$
+		ELSE
+			buf$ += MID$(s$, I%, 1)
+		ENDIF
+	NEXT I%
+=buf$
+
+DEFPROCstdmul(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+
+	IF type1%=int_type% AND type2%=int_type% THEN
+		PROCsrPushI(out$, int1% * int2%)
+		ENDPROC
+	ENDIF
+
+	IF type1%=str_type% AND type2%=flt_type% THEN
+		PROCsrPushS(out$, FNmul_sf(str1$, flt2))
+		ENDPROC
+	ENDIF
+	IF type1%=str_type% AND type2%=int_type% THEN
+		PROCsrPushS(out$, FNmul_sf(str1$, int2%))
+		ENDPROC
+	ENDIF
+
+	IF type1%=flt_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNmul_sf(str2$, flt1))
+		ENDPROC
+	ENDIF
+	IF type1%=int_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNmul_sf(str2$, int1%))
+		ENDPROC
+	ENDIF
+
+	IF type1%=str_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNmul_ss(str1$, str2$))
+		ENDPROC
+	ENDIF
+
+	REM Otherwise, we have floats
+	flt1 = FNfloatValueOf(type1%, int1%, flt1, str1$)
+	flt2 = FNfloatValueOf(type2%, int2%, flt2, str2$)
+	
+	PROCsrPushF(out$, flt1*flt2)
+ENDPROC
+
+REM Division
+REM Whose bright idea was it to define division over strings?
+REM Oh right.  It was mine.
+
+DEFFNdiv_sf(str$, by)=LEFT$(str$, LEN(str$) / by)
+DEFFNdiv_ss(str$, by$)
+	LOCAL buf$, len%, pos%
+	LOCAL l$, r$
+	buf$ = str$
+	len% = LEN(by$)
+	
+	pos% = INSTR(buf$, by$)
+	WHILE pos% > 0
+		l$ = LEFT$(buf$, pos%)
+		r$ = MID$(buf$, pos% + len%)
+		buf$ = l$ + r$
+		pos% = INSTR(buf$, by$)
+	ENDWHILE	
+=buf$
+
+DEFPROCstddiv(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+
+	IF type1%=int_type% AND type2%=int_type% THEN
+		PROCsrPushI(out$, int1% DIV int2%)
+		ENDPROC
+	ENDIF
+
+	IF type1%=str_type% AND type2%=flt_type% THEN
+		PROCsrPushS(out$, FNdiv_sf(str1$, flt2))
+		ENDPROC
+	ENDIF
+
+	IF type1%=flt_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNdiv_sf(str2$, flt1))
+		ENDPROC
+	ENDIF
+
+	IF type1%=str_type% AND type2%=int_type% THEN
+		PROCsrPushS(out$, FNdiv_sf(str1$, int2%))
+		ENDPROC
+	ENDIF
+
+	IF type1%=int_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNdiv_sf(str2$, int1%))
+		ENDPROC
+	ENDIF
+
+	IF type1%=str_type% AND type2%=str_type% THEN
+		PROCsrPushS(out$, FNdiv_ss(str1$, str2$))
+		ENDPROC
+	ENDIF
+
+	REM Otherwise we have at least one float.
+	flt1 = FNfloatValueOf(type1%, int1%, flt1, str1$)
+	flt2 = FNfloatValueOf(type2%, int2%, flt2, str2$)
+
+	PROCsrPushF(out$, flt1/flt2)
+ENDPROC
+
+DEFPROCstdn(in$, out$)
+	LOCAL str$
+	str$ = FNsrPopAsString(in$)
+	str$ += FNnl
+	PROCsrPushS(out$, str$)
+ENDPROC
+
+DEFPROCstd_(in$, out$)
+	LOCAL str$
+	str$ = FNsrPopAsString(in$)
+	str$ += " "
+	PROCsrPushS(out$, str$)
+ENDPROC
+
+DEFPROCstdstringp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	IF type1% = str_type% THEN
+		PROCsrPushI(out$, 1)
+	ELSE
+		PROCsrPushI(out$, 0)
+	ENDIF
+ENDPROC
+
+DEFPROCstdnumberp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	IF type1% = int_type% OR type1% = flt_type% THEN
+		PROCsrPushI(out$, 1)
+	ELSE
+		PROCsrPushI(out$, 0)
+	ENDIF
+ENDPROC
+
+DEFPROCstdintegerp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	IF type1% = int_type% THEN
+		PROCsrPushI(out$, 1)
+	ELSE
+		PROCsrPushI(out$, 0)
+	ENDIF
+ENDPROC
+
+DEFPROCstdfloatp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+	IF type1% = flt_type% THEN
+		PROCsrPushI(out$, 1)
+	ELSE
+		PROCsrPushI(out$, 0)
+	ENDIF
+ENDPROC
+
+DEFPROCstdeqp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	LOCAL type2%, int2%, flt2, str2$
+
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrAutopop(in$, type1%, int1%, flt1, str1$)
+
+	IF type1% = str_type% AND type2% = str_type% THEN
+		IF str1$ = str2$ THEN
+			PROCsrPushI(out$, 1)
+		ELSE
+			PROCsrPushI(out$, 0)
+		ENDIF
+		ENDPROC
+	ENDIF
+
+	IF type1% = str_type% AND type2% <> str_type% THEN
+		PROCsrPushI(out$, 0)
+		ENDPROC
+	ENDIF
+
+	IF type1% <> str_type% AND type2% = str_type% THEN
+		PROCsrPushI(out$, 0)
+		ENDPROC
+	ENDIF
+
+	IF type1% = flt_type% OR type2% = flt_type% THEN
+		flt1 = FNfloatValueOf(type1%, int1%, flt1, str1$)
+		flt2 = FNfloatValueOf(type2%, int2%, flt2, str2$)
+		IF flt1=flt2 THEN
+			PROCsrPushI(out$, 1)
+		ELSE
+			PROCsrPushI(out$, 0)
+		ENDIF
+		ENDPROC	
+	ENDIF
+
+	REM must be integers
+	IF int1% = int2% THEN
+		PROCsrPushI(out$, 1)
+	ELSE
+		PROCsrPushI(out$, 0)
+	ENDIF
+ENDPROC
+
+DEFPROCstdpresentp(in$, out$)
+	LOCAL type1%, int1%, flt1, str1$
+	PROCsrAutopop(in$, type2%, int2%, flt2, str2$)
+	PROCsrPushI(out$, 0)
+ENDPROC
+
+DEFPROCstdload(in$, out$)
+	PRINT "Loadable modules are not available in this interpreter."
+	STOP
+ENDPROC

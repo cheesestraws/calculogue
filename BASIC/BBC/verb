@@ -1,0 +1,84 @@
+LIBRARY "stdlib"
+
+DEFPROCexecVerb(verb$, in$, out$)
+	REM check if a user verb exists with this name
+	LOCAL I%, vt_entry%
+	vt_entry% = -1
+	FOR I% = 0 TO next_verb% - 1
+		IF verb_name$(I%) = verb$ THEN vt_entry% = I%
+	NEXT I%
+
+	IF vt_entry% > -1 THEN
+		PROCstartCtxWithVerb(in$, out$, vt_entry%)
+		PROCrunCtx
+		PROCstopCtx
+	ELSE
+		PROCstdlibDispatch(verb$, in$, out$)
+	ENDIF
+ENDPROC
+
+DEFPROCstdlibDispatch(verb$, in$, out$)
+	CASE verb$ OF
+	WHEN "die":
+		REM this should be QUIT
+		QUIT
+	WHEN "out":
+		PROCstdout(in$, out$)
+	WHEN "in":
+		PROCstdin(in$, out$)
+	WHEN "exec":
+		PROCstdexec(in$, out$)
+	WHEN "verb":
+		PROCstdverb(in$, out$)
+	WHEN "if":
+		PROCstdif(in$, out$)
+	WHEN "while":
+		PROCstdwhile(in$, out$)
+	WHEN "not":
+		PROCstdnot(in$, out$)
+	WHEN "swap":
+		PROCstdswap(in$, out$)
+	WHEN "dup":
+		PROCstddup(in$, out$)
+	WHEN "rm":
+		PROCstdrm(in$, out$)
+	WHEN "mv":
+		PROCstdmv(in$, out$)
+	WHEN "multipop":
+		PROCstdmultipop(in$, out$)
+	WHEN "+":
+		PROCstdplus(in$, out$)
+	WHEN "-":
+		PROCstdminus(in$, out$)
+	WHEN "*":
+		PROCstdmul(in$, out$)
+	WHEN "div":
+		PROCstddiv(in$, out$)
+	WHEN "n":
+		PROCstdn(in$, out$)
+	WHEN "_":
+		PROCstd_(in$, out$)
+	WHEN "string?":
+		PROCstdstringp(in$, out$)
+	WHEN "number?":
+		PROCstdnumberp(in$, out$)
+	WHEN "integer?":
+		PROCstdintegerp(in$, out$)
+	WHEN "float?":
+		PROCstdfloatp(in$, out$)
+	WHEN "eq?":
+		PROCstdeqp(in$, out$)
+	WHEN "present?":
+		PROCstdpresentp(in$, out$)
+	WHEN "load":
+		PROCstdload(in$, out$)
+	WHEN "trace=0":
+		tracing%=0
+	WHEN "trace=1":
+		tracing%=1
+	OTHERWISE
+		PRINT "Unknown verb: "; verb$
+		STOP
+	ENDCASE
+
+ENDPROC

@@ -1,0 +1,55 @@
+DEFPROCsavetok(tok$)
+	tok_buffer$(top_tok%) = tok$
+	top_tok% += 1
+	IF top_tok%=stack_depth% THEN
+		PRINT "Out of exec stack space: increase stack_depth%"
+		STOP
+	ENDIF
+ENDPROC
+
+DEFPROCtokline(str$)
+	REM strip comments first
+	LOCAL sep%, buf$
+	buf$ = str$
+	sep% = INSTR(buf$, "%")
+	IF sep% > 0 THEN
+		buf$ = LEFT$(buf$, sep% - 1)
+	ENDIF
+
+	REM now turn into tokens
+	LOCAL I%, tok$, char$
+	FOR I%=1 TO LEN(buf$)
+		char$ = MID$(buf$, I%, 1)
+		IF ASC(char$) <= 32 THEN
+			REM whitespace
+			IF LEN(tok$) > 0 THEN PROCsavetok(tok$)
+			tok$=""
+		ELSE
+			tok$ += char$
+		ENDIF
+	NEXT I%
+
+	IF LEN(tok$) > 0 THEN PROCsavetok(tok$)
+ENDPROC
+
+DEFPROCtokFile(filename$)
+	LOCAL f%, l$, l$, l$, l$
+
+	f%=OPENIN(filename$)
+	WHILE NOT EOF#f%
+		l$=GET$#f%
+		PROCtokline(l$)
+	ENDWHILE
+	CLOSE#f%
+ENDPROC
+
+DEFPROCtransferTokens
+	LOCAL I%
+	IF top_tok% = 0 THEN ENDPROC
+
+	FOR I%=top_tok%-1 TO 0 STEP -1
+		PROCpushS("e", current_ctx%, tok_buffer$(I%))
+	NEXT I%
+
+	top_tok% = 0
+ENDPROC

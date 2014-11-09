@@ -1,0 +1,109 @@
+REM
+REM Utility: typeToString
+REM Returns a human-readable version of a type
+REM
+
+DEFFNtypeToString(type%)
+	LOCAL descr$
+	CASE type% OF
+	WHEN 0:
+		descr$="null"
+	WHEN 1:
+		descr$="int"
+	WHEN 2:
+		descr$="float"
+	WHEN 3:
+		descr$="string"
+	OTHERWISE
+		descr$="unknown, probably interpreter bug"
+	ENDCASE
+=descr$
+
+
+
+REM
+REM Utility: typeToTraceString
+REM Returns an abbreviated human-readable version of a type for use in
+REM stack traces
+REM
+
+DEFFNtypeToTraceString(type%)
+	LOCAL descr$
+	CASE type% OF
+	WHEN 0:
+		descr$="nul"
+	WHEN 1:
+		descr$="int"
+	WHEN 2:
+		descr$="flt"
+	WHEN 3:
+		descr$="str"
+	OTHERWISE
+		descr$="???"
+	ENDCASE
+=descr$
+
+
+
+REM
+REM stringValueOf: takes the result of srAutopop and turns it into a string
+REM
+
+DEFFNstringValueOf(type%, int%, flt, str$)
+	CASE type% OF
+	WHEN int_type%:
+		=STR$(int%)
+	WHEN flt_type%:
+		=STR$(flt)
+	WHEN str_type%:
+		=str$
+	ENDCASE
+=""
+
+
+
+REM
+REM floatValueOf: takes the result of srAutopop and turns it into a float
+REM
+
+DEFFNfloatValueOf(type%, int%, flt, str$)
+	CASE type% OF
+	WHEN int_type%:
+		=int%
+	WHEN flt_type%:
+		=flt
+	WHEN str_type%:
+		=VAL(str$)
+	ENDCASE
+=""
+
+
+
+REM
+REM intValueOf: takes the result of srAutopop and turns it into an int
+REM
+
+DEFFNintValueOf(type%, int%, flt, str$)
+	CASE type% OF
+	WHEN int_type%:
+		=int% 
+	WHEN flt_type%:
+		=INT(flt)
+	WHEN str_type%:
+		=INT(VAL(str$))
+	ENDCASE
+=""
+
+
+DEFFNnl
+	CASE INKEY(-256) OF
+	WHEN 246:
+		REM Brandy BASIC
+		=CHR$(13) + CHR$(10)
+	WHEN 87:
+		REM BBC BASIC for Windows
+		=CHR$(13) + CHR$(10)
+	OTHERWISE:
+		REM Assume RISC OS
+		=CHR$(10)
+	ENDCASE

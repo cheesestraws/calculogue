@@ -1,0 +1,121 @@
+LIBRARY "sr"
+
+REM
+REM This library contains primitives to create and destroy contexts.
+REM
+
+REM
+REM startCtx: create a new context
+REM
+
+DEFPROCstartCtx(input$, output$)
+	REM First, check there's room for another one
+	IF current_ctx% + 1 >= nested_ctxes% THEN
+		PRINT "Too many nested contexts: increase nested_ctxes%"
+		STOP
+	ENDIF
+
+	REM increment the current ctx
+	current_ctx% += 1
+	
+	REM empty out the stacks for the new ctx
+	pri_top%(current_ctx%) = 0
+	sec_top%(current_ctx%) = 0
+	exec_top%(current_ctx%) = 0
+
+	REM Set input and output stacks
+	input_sr$(current_ctx%) = input$
+	output_sr$(current_ctx%) = output$
+
+	REM Set upexec
+	IF current_ctx% > 0 THEN
+		upexec_sr$(current_ctx%) = FNmakesr("e", current_ctx% - 1)
+	ENDIF
+ENDPROC
+
+
+
+REM
+REM stopCtx: end a context
+REM
+
+DEFPROCstopCtx
+	REM Is there room at the bottom?
+	IF current_ctx% < 0 THEN
+		PRINT "There is no context to stop! Probably interpreter bug"
+		STOP
+	ENDIF
+
+	current_ctx% -= 1
+ENDPROC
+
+
+
+REM
+REM startCtxWithExec: starts a new context and prepopulates its execution
+REM                   stack.  The array passed to this is *cloned* into the
+REM                   stack: the top of the stack is at the end of the array.
+REM
+
+DEFPROCstartCtxWithExec(input$, output$, exec$())
+	LOCAL size%, I%
+
+	PROCstartCtx(input$, output$)
+	
+	REM Check there's room in the new exec stack
+	REM If cnt is -1 that's shorthand for 'whole array'
+	size% = DIM(exec$(), 1)
+	IF size% >= stack_depth% THEN
+		PRINT "No room in stack for this much exec.  Change stack_depth% and increase memory slot."
+		STOP
+	ENDIF
+
+	REM copy exec into the new exec stack
+	FOR I% = 0 TO size%
+		exec_str$(current_ctx%, I%) = exec$(I%)
+		exec_types%(current_ctx%, I%) = str_type%
+	NEXT I%
+
+	exec_top%(current_ctx%) = size%+1
+ENDPROC
+
+
+
+REM
+REM startCtxWithVerb: starts a new context and prepopulates its execution
+REM                   stack fro the verbtable.
+
+DEFPROCstartCtxWithVerb(input$, output$, vt_entry%)
+        LOCAL size%, I%
+
+        PROCstartCtx(input$, output$)
+
+        size% = verb_top%(vt_entry%) - 1
+        IF size% >= stack_depth% THEN
+                PRINT "No room in stack for this much exec.  Change stack_depth% and increase memory slot."
+                STOP
+        ENDIF
+
+        REM copy exec into the new exec stack
+        FOR I% = 0 TO size%
+                exec_str$(current_ctx%, I%) = verb_table$(vt_entry%, I%)
+                exec_types%(current_ctx%, I%) = str_type%
+        NEXT I%
+
+        exec_top%(current_ctx%) = size%+1
+ENDPROC
+
+
+
+
+REM
+REM traceCtx: Traces the current context
+REM
+
+DEFPROCtraceCtx
+	PRINT "Context: "; STR$(current_ctx%)
+	PROCtraceStack("p", current_ctx%)
+	PROCtraceStack("s", current_ctx%)
+	PROCtraceStack("e", current_ctx%)
+ENDPROC
+

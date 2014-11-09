@@ -1,0 +1,161 @@
+LIBRARY "utils"
+LIBRARY "stacks"
+
+REM
+REM This library implements stack references.  A stack reference is a string
+REM which identifies a stack.  It can either be an absolute stack reference
+REM or one relative to the current context
+REM
+REM An SR is just a string consisting of a single letter, saying which stack
+REM it is, and a number, corresponding to the context.
+REM
+
+DEFFNmakesr(stack$, ctx%) = stack$ + STR$(ctx%)
+DEFFNsrWithCurCtx(stack$) = stack$ + STR$(current_ctx%)
+
+DEFFNsrGetStack(sr$) = LEFT$(sr$, 1)
+DEFFNsrGetCtx(sr$) = VAL(RIGHT$(sr$, LEN(sr$) - 1))
+
+
+REM
+REM tisblToSR: Converts a TISBL stack name to an SR.
+REM
+
+DEFFNtisblToSR(name$, isInput%)
+	LOCAL sr$
+	CASE name$ OF
+	WHEN ".":
+		REM This is either the input or output stack
+		IF isInput% <> FALSE THEN
+			sr$ = input_sr$(current_ctx%)
+		ELSE
+			sr$ = output_sr$(current_ctx%)
+		ENDIF
+	WHEN ";":
+		REM This is the upexec stack
+		sr$ = upexec_sr$(current_ctx%)
+	WHEN ",":
+		REM This is the current exec stack
+		sr$ = FNmakesr("e", current_ctx%)
+	WHEN ":":
+		REM This is the secondary stack
+		sr$ = FNmakesr("s", current_ctx%)
+	WHEN "":
+		REM This is the default stack
+		sr$ = FNmakesr("p", current_ctx%)
+	OTHERWISE
+		PRINT "Bad TISBL stackname: " ; name$
+		STOP
+	ENDCASE
+=sr$
+
+
+
+REM
+REM Shim pushes
+REM
+
+DEFPROCsrPushS(sr$, string$)
+	PROCpushS(FNsrGetStack(sr$), FNsrGetCtx(sr$), string$)
+ENDPROC
+
+DEFPROCsrPushI(sr$, int%)
+	PROCpushI(FNsrGetStack(sr$), FNsrGetCtx(sr$), int%)
+ENDPROC
+
+DEFPROCsrPushF(sr$, flt)
+	PROCpushF(FNsrGetStack(sr$), FNsrGetCtx(sr$), flt)
+ENDPROC
+
+
+
+REM
+REM Shim: count
+REM
+
+DEFFNsrCount(sr$) = FNcount(FNsrGetStack(sr$), FNsrGetCtx(sr$))
+
+
+
+REM
+REM Shim typeOfTop
+REM
+
+DEFFNsrTypeOfTop(sr$) = FNtypeOfTop(FNsrGetStack(sr$), FNsrGetCtx(sr$))
+
+
+
+REM
+REM Shim pops
+REM
+
+DEFFNsrPopS(sr$) = FNpopS(FNsrGetStack(sr$), FNsrGetCtx(sr$))
+DEFFNsrPopI(sr$) = FNpopI(FNsrGetStack(sr$), FNsrGetCtx(sr$))
+DEFFNsrPopF(sr$) = FNpopF(FNsrGetStack(sr$), FNsrGetCtx(sr$))
+
+
+
+REM
+REM Pop and force to string
+REM
+
+DEFFNsrPopAsString(sr$)
+	LOCAL type%, str$
+	type% = FNsrTypeOfTop(sr$)
+	
+	CASE type% OF
+	WHEN int_type%:
+		str$ = STR$(FNsrPopI(sr$))
+	WHEN flt_type%:
+		LOCAL flt
+		flt=FNsrPopF(sr$)
+		str$ = STR$(flt)
+	WHEN str_type%:
+		str$ = FNsrPopS(sr$)
+	OTHERWISE
+		PRINT "Found bad type on top of stack.  Interpreter bug."
+		STOP
+	ENDCASE
+=str$
+
+
+
+REM
+REM Autopop: this takes four variables and a type.  And pops into *one* of them
+REM          depending on the type.  And sets the type.  Basically it's an
+REM          imitation struct...
+
+DEFPROCsrAutopop(sr$, RETURN type%, RETURN int%, RETURN flt, RETURN str$)
+	type% = FNsrTypeOfTop(sr$)
+	CASE type% OF
+	WHEN int_type%:
+		int% = FNsrPopI(sr$)
+	WHEN flt_type%:
+		flt = FNsrPopF(sr$)
+	WHEN str_type%:
+		str$ = FNsrPopS(sr$)
+	OTHERWISE
+		PRINT "Found bad type on top of stack.  Interpreter bug."
+		STOP
+	ENDCASE
+ENDPROC
+
+
+
+REM
+REM Autopush: does the exact opposite of Autopop.
+REM
+
+DEFPROCsrAutopush(sr$, type%, int%, flt, str$)
+	CASE type% OF
+	WHEN int_type%:
+		PROCsrPushI(sr$, int%)
+	WHEN flt_type%:
+		PROCsrPushF(sr$, flt)
+	WHEN str_type%:
+		PROCsrPushS(sr$, str$)
+	OTHERWISE
+		PRINT "Found bad type in autopush.  Interpreter bug."
+		STOP
+	ENDCASE
+ENDPROC

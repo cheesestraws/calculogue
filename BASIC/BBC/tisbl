@@ -1,0 +1,96 @@
+REM TISBL for BBC BASIC V
+REM =====================
+REM 
+REM Now, this is likely to be somewhat epic.
+REM
+REM Begin by defining some parameters
+REM These are the same as those in the THINK Pascal version.
+stack_depth% = 256
+nested_ctxes% = 20
+verb_length% = 128
+no_of_verbs% = 20
+
+REM Now allocate us some working space
+REM
+REM Each stack consists of four arrays and a scalar.  Because you need one
+REM of each for each context, this becomes a four 2D arrays and a 1D array.
+REM
+REM Primary stacks first
+DIM pri_int%(nested_ctxes%-1, stack_depth%-1)
+DIM pri_flt(nested_ctxes%-1, stack_depth%-1)
+DIM pri_str$(nested_ctxes%-1, stack_depth%-1)
+DIM pri_types%(nested_ctxes%-1, stack_depth%-1)
+DIM pri_top%(nested_ctxes%-1)
+
+REM Now secondaries
+DIM sec_int%(nested_ctxes%-1, stack_depth%-1)
+DIM sec_flt(nested_ctxes%-1, stack_depth%-1)
+DIM sec_str$(nested_ctxes%-1, stack_depth%-1)
+DIM sec_types%(nested_ctxes%-1, stack_depth%-1)
+DIM sec_top%(nested_ctxes%-1)
+
+REM This looks silly but the spec says that the exec stack is a normal
+REM stack, so it too can have ints and floats on it
+DIM exec_int%(nested_ctxes%-1, stack_depth%-1)
+DIM exec_flt(nested_ctxes%-1, stack_depth%-1)
+DIM exec_str$(nested_ctxes%-1, stack_depth%-1)
+DIM exec_types%(nested_ctxes%-1, stack_depth%-1)
+DIM exec_top%(nested_ctxes%-1)
+
+REM These arrays contain the stack references for the input and output
+REM stacks for each context
+DIM input_sr$(nested_ctxes%-1)
+DIM output_sr$(nested_ctxes%-1)
+DIM upexec_sr$(nested_ctxes%-1)
+
+REM Constants to do with what type is which
+null_type% = 0
+int_type% = 1
+flt_type% = 2 
+str_type% = 3 
+
+REM current context
+current_ctx% = 0
+
+REM Whether the interpreter is tracing or not
+tracing%=0
+
+REM Verbtable
+DIM verb_table$(no_of_verbs% - 1, verb_length% - 1)
+DIM verb_top%(no_of_verbs% - 1)
+DIM verb_name$(no_of_verbs% - 1)
+next_verb%=0
+
+REM Tokeniser buffers
+DIM tok_buffer$(stack_depth% - 1)
+top_tok%=0
+
+REM Now include some libraries
+LIBRARY "utils"
+LIBRARY "stacks"
+LIBRARY "sr"
+LIBRARY "ctx"
+LIBRARY "interp"
+LIBRARY "verb"
+LIBRARY "stdlib"
+LIBRARY "tokeniser"
+
+INPUT "Enter filename, or press <enter> for REPL:" F$
+
+IF F$ <> "" THEN
+	PROCtokFile(F$)
+	PROCtransferTokens
+	PROCrunCtx
+ELSE
+	REM simple repl
+	REPEAT
+		INPUT ">" A$
+		PROCtokline(A$)
+		PROCtransferTokens
+		PROCrunCtx
+	UNTIL FALSE
+ENDIF
+
+END
+
+

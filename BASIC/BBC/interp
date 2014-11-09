@@ -1,0 +1,116 @@
+LIBRARY "sr"
+LIBRARY "verb"
+
+REM
+REM Interp: the guts of the interpreter
+REM
+
+
+
+REM
+REM runTok: Runs a single token
+REM
+
+DEFPROCrunTok(tok$)
+	IF tracing% <> 0 THEN
+		PRINT "Tok: "; tok$
+	ENDIF
+
+	LOCAL buffer$, char$
+	buffer$ = tok$
+	char$ = LEFT$(buffer$, 1)
+
+	REM Are we a verb?
+	IF (char$ = "\") THEN
+		PROCrunVerb(tok$)
+		ENDPROC
+	ENDIF
+
+	REM At this point, we're either a noun or something weird
+	REM Check for output stacks
+	LOCAL outstack$, sr$
+
+	IF INSTR(";.:,", char$) > 0 THEN
+		REM Yes, we have an output stack
+		outstack$=char$
+		buffer$ = RIGHT$(buffer$, LEN(buffer$) - 1)
+		char$ = LEFT$(buffer$, 1)
+	ENDIF
+	sr$ = FNtisblToSR(outstack$, FALSE)
+
+	REM We've saved the first char, chop it off
+	buffer$ = RIGHT$(buffer$, LEN(buffer$) - 1)
+
+	REM At this point we can try to work out what kind of
+	REM noun we're looking at
+	CASE char$ OF
+	WHEN "#":
+		REM Token is a number
+		REM Is it floating-point?
+		IF INSTR(buffer$, ".") > 0 THEN
+			REM Yes
+			LOCAL flt
+			flt = VAL(buffer$)
+			PROCsrPushF(sr$, flt)
+		ELSE
+			LOCAL int%
+			int% = VAL(buffer$)
+			PROCsrPushI(sr$, int%)
+		ENDIF
+	WHEN "'":
+		REM Token is a word
+		REM Push it onto our stack
+		PROCsrPushS(sr$, buffer$)
+	OTHERWISE
+		PRINT "Bad tokentype: "; char$
+		STOP
+	ENDCASE
+
+	IF tracing%<>0 THEN
+		PROCtraceCtx
+		PRINT
+	ENDIF
+ENDPROC
+
+DEFPROCrunVerb(tok$)
+	LOCAL buf$, char$
+	LOCAL instack$, outstack$
+	LOCAL insr$, outsr$
+	buf$ = RIGHT$(tok$, LEN(tok$) - 1)
+
+	REM We now have the full token string in buf$.  Need to check whether
+	REM first and last chars are stacks, and if so chop 'em off
+	char$ = LEFT$(buf$, 1)
+	IF INSTR(";.:,", char$) > 0 THEN
+		REM We have an input stack
+		instack$ = char$
+		buf$ = RIGHT$(buf$, LEN(buf$) - 1)
+	ENDIF
+
+	char$ = RIGHT$(buf$, 1)
+	IF INSTR(";.:,", char$) > 0 THEN
+		REM WE have an output stack
+		outstack$ = char$
+		buf$ = LEFT$(buf$, LEN(buf$) - 1)
+	ENDIF
+
+	REM Now turn these into SRs
+	insr$ = FNtisblToSR(instack$, TRUE)
+	outsr$ = FNtisblToSR(outstack$, FALSE)
+
+	PROCexecVerb(buf$, insr$, outsr$)
+ENDPROC
+
+
+
+REM
+REM runCtx: Runs the current context until it runs out of tokens
+REM
+
+DEFPROCrunCtx
+	LOCAL tok$
+	WHILE FNcount("e", current_ctx%) > 0
+		tok$=FNpopS("e", current_ctx%)
+		PROCrunTok(tok$)
+	ENDWHILE
+ENDPROC
