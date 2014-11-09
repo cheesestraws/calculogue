@@ -18,8 +18,10 @@ It will probably also run under BBC BASIC for Windows (http://www.rtrussell.co.u
 To get this to run: brandy
 --------------------------
 
+```
 $ cd <dir-containing-files>
 $ brandy -quit tisbl
+```
 
 It will ask for a filename; if you want a REPL, hit 'enter'; to run a file enter its name.
 
@@ -28,8 +30,10 @@ To get this to run: BASIC V
 
 Before you run this under RISC OS, you'll need to tokenise the files.  I did this using Steve Fryatt's 'tokenizer' utility, available at http://www.stevefryatt.org.uk/software/build/ but you could just use BASIC's LOADTEXT or StrongEd or Zap or something.
 
-$ dir <dir-containing-files>
-$ basic -quit tisbl
+```
+*dir <dir-containing-files>
+*basic -quit tisbl
+```
 
 It will ask for a filename; if you want a REPL, hit 'enter'; to run a file enter its name.  
 
