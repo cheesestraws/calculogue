@@ -7,6 +7,7 @@ BASIC V sits somewhere between traditional BASICs, all line numbers and spaghett
 
 BASIC V is actually a fairly good language for application programming, especially on RISC OS.  The problem I've put it to here perhaps does not show off its good points.  However, I still have a fondness for it, and I had forgotten how much fun it was to write in this language.
 
+![](img/screenshot.png?raw=true)
 
 System requirements
 -------------------
