@@ -31,9 +31,18 @@ DEFPROCstdexec(in$, out$)
 ENDPROC
 
 DEFPROCstdverb(in$, out$)
-	LOCAL count%, name$
+	LOCAL count%, name$, v_exists%, I%
 	REM pop the name of the verb
 	name$=FNsrPopS(in$)
+
+	REM check whether this verb already exists
+	FOR I%=0 TO next_verb% - 1
+		IF verb_name$(I%) = name$ THEN 
+			PRINT "Duplicate verb name: "; name$
+			STOP
+		ENDIF
+	NEXT I%
+
 
 	REM pop the number of tokens to execute
 	count%=FNsrPopI(in$)
