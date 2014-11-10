@@ -122,7 +122,9 @@ REM Stack utility: typeOfTop
 REM Returns the type of the head of the stack
 REM
 
-DEFFNtypeOfTop(stack$, ctx%)=FNtypeOf(stack$, ctx%, FNcount(stack$, ctx%) - 1)
+DEFFNtypeOfTop(stack$, ctx%)
+	IF FNcount(stack$, ctx%) = 0 THEN PRINT "Stack underflow":STOP
+=FNtypeOf(stack$, ctx%, FNcount(stack$, ctx%) - 1)
 
 
 
@@ -132,6 +134,8 @@ REM
 
 DEFFNpopS(stack$, ctx%)
 	LOCAL type%, str$, top%
+
+	IF FNcount(stack$, ctx%) = 0 THEN PRINT "Stack underflow":STOP
 	
 	REM We're trying to pop a string, check that's what we've got
 	type%=FNtypeOfTop(stack$, ctx%)
@@ -162,6 +166,8 @@ DEFFNpopS(stack$, ctx%)
 DEFFNpopI(stack$, ctx%)
 	LOCAL type%, int%, top%
 
+	IF FNcount(stack$, ctx%) = 0 THEN PRINT "Stack underflow":STOP
+
 	REM We're trying to pop an int, check that's what we've got
 	type%=FNtypeOfTop(stack$, ctx%)
 	IF type%<>int_type% THEN
@@ -190,6 +196,8 @@ DEFFNpopI(stack$, ctx%)
 
 DEFFNpopF(stack$, ctx%)
 	LOCAL type%, flt, top%
+
+	IF FNcount(stack$, ctx%) = 0 THEN PRINT "Stack underflow":STOP
 
 	REM We're trying to pop a float, check that's what we've got
 	type%=FNtypeOfTop(stack$, ctx%)
