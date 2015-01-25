@@ -43,24 +43,34 @@ class Context
         puts "C [ #{@stacks[:c].join(' ')} ]"
       end
 
-      case @stacks[:c].pop
+      token = @stacks[:c].pop
+
+      case token
       when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
+        error "Invalid input stack: #{$1}"  unless inames.has_key?($1)
+        error "Invalid output stack: #{$3}" unless onames.has_key?($3)
+        error "Unknown verb: #{$2}"         unless $verbs.has_key?($2)
         $verbs[$2].(self, inames[$1], onames[$3])
       when /^([,.:;]?)#(\d+)$/
+        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
         @stacks[onames[$1]].push $2.to_i
       when /^([,.:;]?)#(\d+.\d+)$/
+        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
         @stacks[onames[$1]].push $2.to_f
       when /^([,.:;]?)'(.*)$/
+        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
         @stacks[onames[$1]].push $2
       else
-        raise
+        error "Syntax error: #{token}"
       end
     end
   end
 
   def multipop(i)
     result = []
-    @stacks[i].pop.times do
+    count = @stacks[i].pop
+    error "Not a number: #{count}" unless number?(count)
+    count.to_i.times do
       result.push @stacks[i].pop
     end
     result
@@ -75,6 +85,11 @@ def number?(v)
   v.is_a?(Fixnum) or v.is_a?(Float)
 end
 
+def error(message)
+  puts message
+  exit 1
+end
+
 if ARGV.empty?
   root = Context.new
   loop do
@@ -84,8 +99,12 @@ if ARGV.empty?
     puts
   end
 else
-  File.open(ARGV[0]) do |file|
-    Context.new(file.read.gsub(/%.*$/, '').split.reverse).execute
+  begin
+    File.open(ARGV[0]) do |file|
+      Context.new(file.read.gsub(/%.*$/, '').split.reverse).execute
+    end
+  rescue => e
+    error e.message
   end
 end
 
