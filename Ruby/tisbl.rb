@@ -37,13 +37,15 @@ class Context
     onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
 
     until @stacks[:c].empty?
-      if $trace
-        puts "P [ #{@stacks[:p].join(' ')} ]"
-        puts "S [ #{@stacks[:s].join(' ')} ]"
-        puts "C [ #{@stacks[:c].join(' ')} ]"
-      end
-
       token = @stacks[:c].pop
+
+      if $trace
+        puts "T #{escape(token)}"
+        puts "P [ #{@stacks[:p].map{ |s| escape(s) }.join ' '} ]"
+        puts "S [ #{@stacks[:s].map{ |s| escape(s) }.join ' '} ]"
+        puts "C [ #{@stacks[:c].map{ |s| escape(s) }.join ' '} ]"
+        puts
+      end
 
       case token
       when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
@@ -69,7 +71,7 @@ class Context
   def multipop(i)
     result = []
     count = @stacks[i].pop
-    error "Not a number: #{count}" unless number?(count)
+    error "Not a number: #{escape(count)}" unless number?(count)
     count.to_i.times do
       result.push @stacks[i].pop
     end
@@ -88,6 +90,17 @@ end
 def error(message)
   puts message
   exit 1
+end
+
+def escape(t)
+  case
+  when t.is_a?(Fixnum)
+    "i:#{t}"
+  when t.is_a?(Float)
+    "f:#{t}"
+  else
+    "s:#{t.dump}"
+  end
 end
 
 if ARGV.empty?
