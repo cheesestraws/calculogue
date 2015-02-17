@@ -38,6 +38,7 @@ class Context
 
     until @stacks[:c].empty?
       token = @stacks[:c].pop
+      error "Cannot execute number" unless token.is_a?(String)
 
       if $trace
         puts "T #{escape(token)}"
@@ -49,19 +50,25 @@ class Context
 
       case token
       when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
-        error "Invalid input stack: #{$1}"  unless inames.has_key?($1)
-        error "Invalid output stack: #{$3}" unless onames.has_key?($3)
-        error "Unknown verb: #{$2}"         unless $verbs.has_key?($2)
-        $verbs[$2].(self, inames[$1], onames[$3])
+        istack = inames[$1]
+        ostack = onames[$3]
+        verb = $verbs[$2]
+        error "Invalid input stack: #{$1}"  unless istack
+        error "Invalid output stack: #{$3}" unless ostack
+        error "Unknown verb: #{$2}"         unless verb
+        verb.(self, istack, ostack)
       when /^([,.:;]?)#(\d+)$/
-        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
-        @stacks[onames[$1]].push $2.to_i
+        ostack = onames[$1]
+        error "Invalid output stack: #{$1}" unless ostack
+        @stacks[ostack].push $2.to_i
       when /^([,.:;]?)#(\d+.\d+)$/
-        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
-        @stacks[onames[$1]].push $2.to_f
+        ostack = onames[$1]
+        error "Invalid output stack: #{$1}" unless ostack
+        @stacks[ostack].push $2.to_f
       when /^([,.:;]?)'(.*)$/
-        error "Invalid output stack: #{$3}" unless onames.has_key?($1)
-        @stacks[onames[$1]].push $2
+        ostack = onames[$1]
+        error "Invalid output stack: #{$1}" unless ostack
+        @stacks[ostack].push $2
       else
         error "Syntax error: #{token}"
       end
