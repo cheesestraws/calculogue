@@ -65,7 +65,7 @@ $verbs['not'] = ->(c, i, o) do
 end
 
 $verbs['in'] = ->(c, i, o) do
-  c[o].push gets
+  c[o].push $stdin.gets.chomp
 end
 
 $verbs['out'] = ->(c, i, o) do
