@@ -119,10 +119,6 @@ $verbs['multipop'] = ->(c, i, o) do
   c.multipop(i)
 end
 
-$verbs['present?'] = ->(c, i, o) do
-  c[o].push bool(File.exists?(c[i].pop))
-end
-
 $verbs['load'] = ->(c, i, o) do
   require c[i].pop
 end
