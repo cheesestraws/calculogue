@@ -111,7 +111,7 @@ static void stdlib_traceoff(TLVM* vm, TLStack* input, TLStack* output)
 static void stdlib_exec(TLVM* vm, TLStack* input, TLStack* output)
 {
     TLStack code = tl_new_stack();
-    tl_multipop(&code, input);
+    tl_multipop(vm, &code, input);
     tl_push_context(vm, &code, input, output);
     tl_execute(vm);
     tl_pop_context(vm);
@@ -119,12 +119,16 @@ static void stdlib_exec(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_verb(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue name = tl_pop_value(input);
+    TLValue name = tl_pop_value(vm, input);
     if (tl_is_number(name))
-        tl_panic("Verb name cannot be a number");
+    {
+        TLValue string = tl_cast_value(name, TL_STRING);
+        vm->panic(vm, "Verb name not a string: %s (%s:%u)",
+                  string.s, tl_file(vm, string), tl_line(string));
+    }
 
     TLStack code = tl_new_stack();
-    tl_multipop(&code, input);
+    tl_multipop(vm, &code, input);
     tl_create_tisbl_verb(vm, name.s, code);
     tl_clear_value(&name);
 }
@@ -132,9 +136,9 @@ static void stdlib_verb(TLVM* vm, TLStack* input, TLStack* output)
 static void stdlib_if(TLVM* vm, TLStack* input, TLStack* output)
 {
     TLStack code = tl_new_stack();
-    tl_multipop(&code, input);
+    tl_multipop(vm, &code, input);
 
-    TLValue cond = tl_pop_value(input);
+    TLValue cond = tl_pop_value(vm, input);
     if (tl_bool(cond))
     {
         tl_push_context(vm, &code, input, output);
@@ -148,11 +152,11 @@ static void stdlib_if(TLVM* vm, TLStack* input, TLStack* output)
 static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
 {
     TLStack code = tl_new_stack();
-    tl_multipop(&code, input);
+    tl_multipop(vm, &code, input);
 
     for (;;)
     {
-        TLValue cond = tl_pop_value(input);
+        TLValue cond = tl_pop_value(vm, input);
         if (!tl_bool(cond))
         {
             tl_clear_value(&cond);
@@ -171,55 +175,55 @@ static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_not(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
-    tl_push_integer(output, tl_bool(v) == false);
+    TLValue v = tl_pop_value(vm, input);
+    tl_push_integer(vm, output, tl_bool(v) == false);
     tl_clear_value(&v);
 }
 
 static void stdlib_swap(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue a = tl_pop_value(input);
-    TLValue b = tl_pop_value(input);
+    TLValue a = tl_pop_value(vm, input);
+    TLValue b = tl_pop_value(vm, input);
     tl_push_value(output, a);
     tl_push_value(output, b);
 }
 
 static void stdlib_dup(TLVM* vm, TLStack* input, TLStack* output)
 {
-    tl_push_value(output, tl_clone_value(tl_peek_value(input)));
+    tl_push_value(output, tl_clone_value(tl_peek_value(vm, input)));
 }
 
 static void stdlib_rm(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
+    TLValue v = tl_pop_value(vm, input);
     tl_clear_value(&v);
 }
 
 static void stdlib_mv(TLVM* vm, TLStack* input, TLStack* output)
 {
-    tl_push_value(output, tl_pop_value(input));
+    tl_push_value(output, tl_pop_value(vm, input));
 }
 
 static void stdlib_multipop(TLVM* vm, TLStack* input, TLStack* output)
 {
-    tl_multipop(output, input);
+    tl_multipop(vm, output, input);
 }
 
 static void stdlib_add(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue s = tl_pop_value(input);
-    TLValue f = tl_pop_value(input);
+    TLValue s = tl_pop_value(vm, input);
+    TLValue f = tl_pop_value(vm, input);
 
     if (tl_is_integer(f) && tl_is_integer(s))
-        tl_push_integer(output, f.i + s.i);
+        tl_push_integer(vm, output, f.i + s.i);
     else if (tl_is_string(f) || tl_is_string(s))
     {
         f = tl_cast_value(f, TL_STRING);
         s = tl_cast_value(s, TL_STRING);
-        tl_push_string(output, tl_append_strings(f.s, s.s));
+        tl_push_string(vm, output, tl_append_strings(f.s, s.s));
     }
     else
-        tl_push_float(output, tl_float(f) + tl_float(s));
+        tl_push_float(vm, output, tl_float(f) + tl_float(s));
 
     tl_clear_value(&f);
     tl_clear_value(&s);
@@ -227,19 +231,19 @@ static void stdlib_add(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_sub(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue s = tl_pop_value(input);
-    TLValue f = tl_pop_value(input);
+    TLValue s = tl_pop_value(vm, input);
+    TLValue f = tl_pop_value(vm, input);
 
     if (tl_is_integer(f) && tl_is_integer(s))
-        tl_push_integer(output, f.i - s.i);
+        tl_push_integer(vm, output, f.i - s.i);
     else if (tl_is_number(f) && tl_is_string(s))
-        tl_push_string(output, sub_integer_from_string(s.s, tl_integer(f)));
+        tl_push_string(vm, output, sub_integer_from_string(s.s, tl_integer(f)));
     else if (tl_is_string(f) && tl_is_number(s))
-        tl_push_string(output, sub_integer_from_string(f.s, tl_integer(s)));
+        tl_push_string(vm, output, sub_integer_from_string(f.s, tl_integer(s)));
     else if (tl_is_string(f) && tl_is_string(s))
-        tl_push_string(output, sub_string_from_string(f.s, s.s));
+        tl_push_string(vm, output, sub_string_from_string(f.s, s.s));
     else
-        tl_push_float(output, tl_float(f) - tl_float(s));
+        tl_push_float(vm, output, tl_float(f) - tl_float(s));
 
     tl_clear_value(&f);
     tl_clear_value(&s);
@@ -247,19 +251,19 @@ static void stdlib_sub(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_mul(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue s = tl_pop_value(input);
-    TLValue f = tl_pop_value(input);
+    TLValue s = tl_pop_value(vm, input);
+    TLValue f = tl_pop_value(vm, input);
 
     if (tl_is_integer(f) && tl_is_integer(s))
-        tl_push_integer(output, f.i * s.i);
+        tl_push_integer(vm, output, f.i * s.i);
     else if (tl_is_number(f) && tl_is_string(s))
-        tl_push_string(output, mul_string_by_float(s.s, tl_float(f)));
+        tl_push_string(vm, output, mul_string_by_float(s.s, tl_float(f)));
     else if (tl_is_string(f) && tl_is_number(s))
-        tl_push_string(output, mul_string_by_float(f.s, tl_float(s)));
+        tl_push_string(vm, output, mul_string_by_float(f.s, tl_float(s)));
     else if (tl_is_string(f) && tl_is_string(s))
-        tl_push_string(output, mul_string_by_string(f.s, s.s));
+        tl_push_string(vm, output, mul_string_by_string(f.s, s.s));
     else
-        tl_push_float(output, tl_float(f) * tl_float(s));
+        tl_push_float(vm, output, tl_float(f) * tl_float(s));
 
     tl_clear_value(&f);
     tl_clear_value(&s);
@@ -267,19 +271,19 @@ static void stdlib_mul(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_div(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue s = tl_pop_value(input);
-    TLValue f = tl_pop_value(input);
+    TLValue s = tl_pop_value(vm, input);
+    TLValue f = tl_pop_value(vm, input);
 
     if (tl_is_integer(f) && tl_is_integer(s))
-        tl_push_integer(output, f.i / s.i);
+        tl_push_integer(vm, output, f.i / s.i);
     else if (tl_is_number(f) && tl_is_string(s))
-        tl_push_string(output, div_string_by_float(s.s, tl_float(f)));
+        tl_push_string(vm, output, div_string_by_float(s.s, tl_float(f)));
     else if (tl_is_string(f) && tl_is_number(s))
-        tl_push_string(output, div_string_by_float(f.s, tl_float(s)));
+        tl_push_string(vm, output, div_string_by_float(f.s, tl_float(s)));
     else if (tl_is_string(f) && tl_is_string(s))
-        tl_push_string(output, div_string_by_string(f.s, s.s));
+        tl_push_string(vm, output, div_string_by_string(f.s, s.s));
     else
-        tl_push_float(output, tl_float(f) / tl_float(s));
+        tl_push_float(vm, output, tl_float(f) / tl_float(s));
 
     tl_clear_value(&f);
     tl_clear_value(&s);
@@ -287,43 +291,43 @@ static void stdlib_div(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_n(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_cast_value(tl_pop_value(input), TL_STRING);
-    tl_push_string(output, tl_append_strings(v.s, "\n"));
+    TLValue v = tl_cast_value(tl_pop_value(vm, input), TL_STRING);
+    tl_push_string(vm, output, tl_append_strings(v.s, "\n"));
     tl_clear_value(&v);
 }
 
 static void stdlib_space(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_cast_value(tl_pop_value(input), TL_STRING);
-    tl_push_string(output, tl_append_strings(v.s, " "));
+    TLValue v = tl_cast_value(tl_pop_value(vm, input), TL_STRING);
+    tl_push_string(vm, output, tl_append_strings(v.s, " "));
     tl_clear_value(&v);
 }
 
 static void stdlib_word(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
-    tl_push_integer(output, tl_is_string(v));
+    TLValue v = tl_pop_value(vm, input);
+    tl_push_integer(vm, output, tl_is_string(v));
     tl_clear_value(&v);
 }
 
 static void stdlib_number(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
-    tl_push_integer(output, tl_is_number(v));
+    TLValue v = tl_pop_value(vm, input);
+    tl_push_integer(vm, output, tl_is_number(v));
     tl_clear_value(&v);
 }
 
 static void stdlib_integer(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
-    tl_push_integer(output, tl_is_integer(v));
+    TLValue v = tl_pop_value(vm, input);
+    tl_push_integer(vm, output, tl_is_integer(v));
     tl_clear_value(&v);
 }
 
 static void stdlib_float(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_pop_value(input);
-    tl_push_integer(output, tl_is_float(v));
+    TLValue v = tl_pop_value(vm, input);
+    tl_push_integer(vm, output, tl_is_float(v));
     tl_clear_value(&v);
 }
 
@@ -334,14 +338,14 @@ static void stdlib_die(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_out(TLVM* vm, TLStack* input, TLStack* output)
 {
-    TLValue v = tl_cast_value(tl_pop_value(input), TL_STRING);
-    vm->output(v.s);
+    TLValue v = tl_cast_value(tl_pop_value(vm, input), TL_STRING);
+    vm->output(vm, v.s);
     tl_clear_value(&v);
 }
 
 static void stdlib_in(TLVM* vm, TLStack* input, TLStack* output)
 {
-    tl_push_string(output, vm->input());
+    tl_push_string(vm, output, vm->input(vm));
 }
 
 extern void tl_register_stdlib(TLVM* vm)

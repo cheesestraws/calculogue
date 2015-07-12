@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <inttypes.h>
 
 #include "getopt.h"
@@ -21,7 +22,7 @@ static void usage(void)
     puts("  -v, --version  show version information");
 }
 
-static char* read_line(void)
+static char* read_line(TLVM* vm)
 {
     char* line = NULL;
     size_t length = 0, size = 1024;
@@ -46,7 +47,7 @@ static char* read_line(void)
     return line;
 }
 
-static void print_line(const char* text)
+static void print(TLVM* vm, const char* text)
 {
     printf("%s", text);
 }
@@ -93,17 +94,40 @@ static void print_stack(const TLStack* stack)
     printf(" ]\n");
 }
 
-static void step(TLVM* vm, const char* token)
+static void step(TLVM* vm)
 {
     const TLContext* context = vm->contexts[vm->ccount - 1];
 
-    printf("T %s\n", token);
+    printf("T %s\n", context->token.s);
     printf("P ");
     print_stack(&context->primary);
     printf("S ");
     print_stack(&context->secondary);
     printf("C ");
     print_stack(&context->execution);
+}
+
+static void panic(TLVM* vm, const char* format, ...)
+{
+    va_list vl;
+
+    fprintf(stderr, "Call stack:\n");
+
+    for (size_t i = 0;  i < vm->ccount;  i++)
+    {
+        TLValue string = tl_cast_value(vm->contexts[i]->token, TL_STRING);
+        fprintf(stderr, " %s (%s:%u)\n",
+                string.s,
+                tl_file(vm, string),
+                tl_line(string));
+    }
+
+    va_start(vl, format);
+    vfprintf(stderr, format, vl);
+    va_end(vl);
+
+    putchar('\n');
+    exit(EXIT_FAILURE);
 }
 
 int main(int argc, char** argv)
@@ -141,7 +165,7 @@ int main(int argc, char** argv)
     argc -= optind;
     argv += optind;
 
-    TLVM vm = tl_new_vm(read_line, print_line, step);
+    TLVM vm = tl_new_vm(read_line, print, step, panic);
     vm.trace = trace;
     tl_register_stdlib(&vm);
     tl_push_context(&vm, NULL, NULL, NULL);
@@ -150,7 +174,10 @@ int main(int argc, char** argv)
     {
         FILE* file = fopen(argv[0], "rb");
         if (!file)
-            tl_panic("Failed to open file");
+        {
+            fprintf(stderr, "Failed to open file\n");
+            exit(EXIT_FAILURE);
+        }
 
         fseek(file, 0, SEEK_END);
         const long size = ftell(file);
@@ -160,7 +187,7 @@ int main(int argc, char** argv)
         fread(text, 1, size, file);
         fclose(file);
 
-        tl_tokenize(&vm.contexts[0]->execution, text);
+        tl_tokenize(&vm, argv[0], text);
         free(text);
         tl_execute(&vm);
     }
@@ -170,11 +197,11 @@ int main(int argc, char** argv)
         {
             printf("> ");
 
-            char* line = read_line();
+            char* line = read_line(&vm);
             if (!line)
                 break;
 
-            tl_tokenize(&vm.contexts[0]->execution, line);
+            tl_tokenize(&vm, "(stdin)", line);
             free(line);
             tl_execute(&vm);
 

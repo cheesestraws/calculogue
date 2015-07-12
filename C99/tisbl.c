@@ -93,7 +93,7 @@ static TLStack* source_stack(TLContext* context, char c)
         case ',': return &context->execution;
         case ';': return context->parent;
         case '.': return context->output;
-        default:  tl_panic("This cannot happen");
+        default:  abort();
     }
 }
 
@@ -105,13 +105,33 @@ static TLStack* target_stack(TLContext* context, char c)
         case ',': return &context->execution;
         case ';': return context->parent;
         case '.': return context->input;
-        default:  tl_panic("This cannot happen");
+        default:  abort();
     }
 }
 
-extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step)
+extern char* tl_clone_string_range(const char* source, size_t length)
 {
-    return (TLVM) { NULL, 0, NULL, 0, false, input, output, step };
+    char* result = calloc(length + 1, 1);
+    memcpy(result, source, length);
+    return result;
+}
+
+extern char* tl_clone_string(const char* source)
+{
+    return tl_clone_string_range(source, strlen(source));
+}
+
+extern char* tl_append_strings(const char* a, const char* b)
+{
+    char* result = calloc(strlen(a) + strlen(b) + 1, 1);
+    strcat(result, a);
+    strcat(result, b);
+    return result;
+}
+
+extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPanicFn* panic)
+{
+    return (TLVM) { NULL, 0, NULL, 0, false, input, output, step, panic };
 }
 
 extern void tl_clear_vm(TLVM* vm)
@@ -125,8 +145,12 @@ extern void tl_clear_vm(TLVM* vm)
         free(vm->verbs[i].name);
     }
 
+    for (size_t i = 0;  i < vm->fcount;  i++)
+        free(vm->files[i]);
+
     free(vm->contexts);
     free(vm->verbs);
+    free(vm->files);
     memset(vm, 0, sizeof(TLVM));
 }
 
@@ -156,6 +180,7 @@ extern void tl_pop_context(TLVM* vm)
     tl_clear_stack(&context->primary);
     tl_clear_stack(&context->secondary);
     tl_clear_stack(&context->execution);
+    tl_clear_value(&context->token);
     free(context);
     vm->ccount--;
 }
@@ -199,46 +224,50 @@ extern void tl_push_value(TLStack* target, TLValue v)
     target->values[target->count++] = v;
 }
 
-extern void tl_push_integer(TLStack* target, int64_t i)
+extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i)
 {
-    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER });
+    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER, tl_pos(vm) });
 }
 
-extern void tl_push_float(TLStack* target, double f)
+extern void tl_push_float(TLVM* vm, TLStack* target, double f)
 {
-    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT });
+    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT, tl_pos(vm) });
 }
 
-extern void tl_push_string(TLStack* target, char* s)
+extern void tl_push_string(TLVM* vm, TLStack* target, char* s)
 {
-    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING });
+    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING, tl_pos(vm) });
 }
 
-extern TLValue tl_pop_value(TLStack* source)
+extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
 {
     if (source->count == 0)
-        tl_panic("Stack underflow");
+        vm->panic(vm, "Stack underflow");
 
     return source->values[--source->count];
 }
 
-extern TLValue tl_peek_value(TLStack* source)
+extern TLValue tl_peek_value(TLVM* vm, TLStack* source)
 {
     if (source->count == 0)
-        tl_panic("Stack underflow");
+        vm->panic(vm, "Stack underflow");
 
     return source->values[source->count - 1];
 }
 
-extern void tl_multipop(TLStack* target, TLStack* source)
+extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source)
 {
-    TLValue count = tl_pop_value(source);
+    TLValue count = tl_pop_value(vm, source);
     if (!tl_is_integer(count))
-        tl_panic("Multipop count not an integer");
+    {
+        TLValue string = tl_cast_value(count, TL_STRING);
+        vm->panic(vm, "Multipop count not an integer: %s (%s:%u)",
+                  string.s, tl_file(vm, string), tl_line(string));
+    }
 
     tl_reserve(target, target->count + count.i);
     while (count.i--)
-        tl_push_value(target, tl_pop_value(source));
+        tl_push_value(target, tl_pop_value(vm, source));
 }
 
 extern void tl_create_native_verb(TLVM* vm, const char* name, TLVerbProc* proc)
@@ -341,9 +370,26 @@ extern void tl_clear_value(TLValue* v)
     memset(v, 0, sizeof(TLValue));
 }
 
-extern void tl_tokenize(TLStack* target, const char* text)
+extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 {
+    size_t i;
+    TLPos pos = { 0, 1 };
     TLStack tokens = tl_new_stack();
+
+    for (i = 0;  i < vm->fcount;  i++)
+    {
+        if (strcmp(vm->files[i], file) == 0)
+            break;
+    }
+
+    if (i == vm->fcount)
+    {
+        vm->fcount++;
+        vm->files = realloc(vm->files, vm->fcount * sizeof(char*));
+        vm->files[vm->fcount - 1] = tl_clone_string(file);
+    }
+
+    pos.file = i;
 
     while (*text)
     {
@@ -352,7 +398,16 @@ extern void tl_tokenize(TLStack* target, const char* text)
         if (is_whitespace(*end))
         {
             while (is_whitespace(*end))
+            {
+                if (is_newline(*end))
+                {
+                    pos.line++;
+                    if (end[0] == '\r' && end[1] == '\n')
+                        end++;
+                }
+
                 end++;
+            }
         }
         else if (*end == '%')
         {
@@ -364,14 +419,23 @@ extern void tl_tokenize(TLStack* target, const char* text)
             while (*end && !is_whitespace(*end))
                 end++;
 
-            tl_push_string(&tokens, tl_clone_string_range(text, end - text));
+            TLValue token =
+            {
+                .s = tl_clone_string_range(text, end - text),
+                .type = TL_STRING,
+                .pos = pos
+            };
+            tl_push_value(&tokens, token);
         }
 
         text = end;
     }
 
+    TLStack* target = &vm->contexts[0]->execution;
+
+    tl_reserve(target, target->count + tokens.count);
     while (tokens.count)
-        tl_push_value(target, tl_pop_value(&tokens));
+        tl_push_value(target, tl_pop_value(vm, &tokens));
 
     tl_clear_stack(&tokens);
 }
@@ -384,13 +448,16 @@ extern void tl_execute(TLVM* vm)
     {
         TLStack* target = &context->primary;
         TLStack* source = &context->primary;
-        TLValue token = tl_pop_value(&context->execution);
+        TLValue token = tl_pop_value(vm, &context->execution);
 
         if (tl_is_number(token))
-            tl_panic("Cannot execute number");
+            vm->panic(vm, "Cannot execute number");
+
+        tl_clear_value(&context->token);
+        context->token = tl_clone_value(token);
 
         if (vm->trace)
-            vm->step(vm, token.s);
+            vm->step(vm);
 
         char* start = token.s;
 
@@ -415,11 +482,11 @@ extern void tl_execute(TLVM* vm)
             *end = '\0';
 
             if (!is_verb_name(start))
-                tl_panic("Illegal verb name: %s", start);
+                vm->panic(vm, "Illegal verb name: %s", start);
 
             TLVerb* verb = find_verb(vm, start);
             if (!verb)
-                tl_panic("Undefined verb: %s", start);
+                vm->panic(vm, "Undefined verb: %s", start);
 
             if (verb->proc)
                 verb->proc(vm, source, target);
@@ -444,19 +511,19 @@ extern void tl_execute(TLVM* vm)
                 start++;
 
                 if (is_integer(start))
-                    tl_push_integer(target, strtol(start, NULL, 10));
+                    tl_push_integer(vm, target, strtol(start, NULL, 10));
                 else if (is_float(start))
-                    tl_push_float(target, strtod(start, NULL));
+                    tl_push_float(vm, target, strtod(start, NULL));
                 else
-                    tl_panic("Invalid number: %s", start);
+                    vm->panic(vm, "Invalid number: %s", start);
             }
             else if (*start == '\'')
             {
                 start++;
-                tl_push_string(target, tl_clone_string(start));
+                tl_push_string(vm, target, tl_clone_string(start));
             }
             else
-                tl_panic("Invalid token: %s", start);
+                vm->panic(vm, "Invalid token: %s", start);
         }
 
         tl_clear_value(&token);
