@@ -173,6 +173,26 @@ static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
     tl_clear_stack(&code);
 }
 
+static void stdlib_eq(TLVM* vm, TLStack* input, TLStack* output)
+{
+    TLValue a = tl_pop_value(vm, input);
+    TLValue b = tl_pop_value(vm, input);
+
+    if (tl_is_string(a) || tl_is_string(b))
+    {
+        a = tl_cast_value(a, TL_STRING);
+        b = tl_cast_value(b, TL_STRING);
+        tl_push_integer(vm, output, strcmp(a.s, b.s) == 0);
+    }
+    else if (tl_is_float(a) || tl_is_float(b))
+        tl_push_integer(vm, output, tl_float(a) == tl_float(b));
+    else
+        tl_push_integer(vm, output, tl_integer(a) == tl_integer(b));
+
+    tl_clear_value(&a);
+    tl_clear_value(&b);
+}
+
 static void stdlib_not(TLVM* vm, TLStack* input, TLStack* output)
 {
     TLValue v = tl_pop_value(vm, input);
@@ -356,6 +376,7 @@ extern void tl_register_stdlib(TLVM* vm)
     tl_create_native_verb(vm, "verb",     stdlib_verb);
     tl_create_native_verb(vm, "if",       stdlib_if);
     tl_create_native_verb(vm, "while",    stdlib_while);
+    tl_create_native_verb(vm, "eq?",      stdlib_eq);
     tl_create_native_verb(vm, "not",      stdlib_not);
     tl_create_native_verb(vm, "swap",     stdlib_swap);
     tl_create_native_verb(vm, "dup",      stdlib_dup);
