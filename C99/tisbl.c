@@ -92,7 +92,7 @@ static TLStack* source_stack(TLContext* context, char c)
         case ':': return &context->secondary;
         case ',': return &context->execution;
         case ';': return context->parent;
-        case '.': return context->output;
+        case '.': return context->input;
         default:  abort();
     }
 }
@@ -104,7 +104,7 @@ static TLStack* target_stack(TLContext* context, char c)
         case ':': return &context->secondary;
         case ',': return &context->execution;
         case ';': return context->parent;
-        case '.': return context->input;
+        case '.': return context->output;
         default:  abort();
     }
 }
