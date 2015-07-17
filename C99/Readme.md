@@ -14,16 +14,9 @@ GNU function `getopt_long` is implemented by the bundled `getopt.*` files.
 
 ## To get this to run
 
-To build the default driver program, simply compile all the source files.  On
-some Unices you may need to append `-lm` due to the use of `lround`.
-
-```sh
-cc -o tisbl *.c
-```
+To build the default driver program on a Unix-like system, simply run `make`.
+It will build the library and driver binaries.
 
 The driver program supports both interactive and non-interactive modes.  See
 `tisbl --help` for details.
-
-To build the library, include `tisbl.c` and `utility.c`, and optionally
-`stdlib.c` if you wish to use the standard library.
 
