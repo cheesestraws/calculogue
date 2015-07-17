@@ -146,6 +146,7 @@ static void stdlib_if(TLVM* vm, TLStack* input, TLStack* output)
         tl_pop_context(vm);
     }
 
+    tl_clear_stack(&code);
     tl_clear_value(&cond);
 }
 
