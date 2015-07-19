@@ -32,7 +32,10 @@ typedef void TLPanicFn(TLVM* vm, const char* format, ...);
 #define tl_is_string(x) ((x).type == TL_STRING)
 #define tl_is_number(x) ((x).type == TL_INTEGER || (x).type == TL_FLOAT)
 
-#define tl_pos(vm) ((vm)->contexts[(vm)->ccount-1]->token.pos)
+#define tl_top_context(vm) ((vm)->contexts[(vm)->ccount-1])
+#define tl_top_pos(vm) (tl_top_context(vm)->token.pos)
+#define tl_top_file(vm) tl_file(vm, tl_top_context(vm)->token)
+#define tl_top_line(vm) tl_line(tl_top_context(vm)->token)
 #define tl_file(vm, v) ((vm)->files[(v).pos.file])
 #define tl_line(v) ((v).pos.line)
 
@@ -106,7 +109,6 @@ extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPa
 extern void tl_clear_vm(TLVM* vm);
 extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output);
 extern void tl_pop_context(TLVM* vm);
-extern TLContext* tl_top_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
 extern void tl_tokenize(TLVM* vm, const char* file, const char* text);
 
@@ -116,7 +118,7 @@ extern TLStack tl_clone_stack(const TLStack* stack);
 extern void tl_reserve(TLStack* stack, size_t capacity);
 extern void tl_push_value(TLStack* target, TLValue value);
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source);
-extern TLValue tl_peek_value(TLVM* vm, TLStack* source);
+extern TLValue tl_top_value(TLVM* vm, TLStack* source);
 extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source);
 extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i);
 extern void tl_push_float(TLVM* vm, TLStack* target, double f);

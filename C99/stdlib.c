@@ -211,7 +211,7 @@ static void stdlib_swap(TLVM* vm, TLStack* input, TLStack* output)
 
 static void stdlib_dup(TLVM* vm, TLStack* input, TLStack* output)
 {
-    tl_push_value(output, tl_clone_value(tl_peek_value(vm, input)));
+    tl_push_value(output, tl_clone_value(tl_top_value(vm, input)));
 }
 
 static void stdlib_rm(TLVM* vm, TLStack* input, TLStack* output)

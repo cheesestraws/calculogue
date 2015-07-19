@@ -167,7 +167,7 @@ extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStac
     }
 
     if (vm->ccount)
-        context->parent = &vm->contexts[vm->ccount - 1]->execution;
+        context->parent = &tl_top_context(vm)->execution;
 
     vm->ccount++;
     vm->contexts = realloc(vm->contexts, sizeof(TLContext*) * vm->ccount);
@@ -176,7 +176,7 @@ extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStac
 
 extern void tl_pop_context(TLVM* vm)
 {
-    TLContext* context = vm->contexts[vm->ccount - 1];
+    TLContext* context = tl_top_context(vm);
     tl_clear_stack(&context->primary);
     tl_clear_stack(&context->secondary);
     tl_clear_stack(&context->execution);
@@ -226,17 +226,17 @@ extern void tl_push_value(TLStack* target, TLValue v)
 
 extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i)
 {
-    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER, tl_pos(vm) });
+    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER, tl_top_pos(vm) });
 }
 
 extern void tl_push_float(TLVM* vm, TLStack* target, double f)
 {
-    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT, tl_pos(vm) });
+    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT, tl_top_pos(vm) });
 }
 
 extern void tl_push_string(TLVM* vm, TLStack* target, char* s)
 {
-    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING, tl_pos(vm) });
+    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING, tl_top_pos(vm) });
 }
 
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
@@ -247,7 +247,7 @@ extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
     return source->values[--source->count];
 }
 
-extern TLValue tl_peek_value(TLVM* vm, TLStack* source)
+extern TLValue tl_top_value(TLVM* vm, TLStack* source)
 {
     if (source->count == 0)
         vm->panic(vm, "Stack underflow");
@@ -442,7 +442,7 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 
 extern void tl_execute(TLVM* vm)
 {
-    TLContext* context = vm->contexts[vm->ccount - 1];
+    TLContext* context = tl_top_context(vm);
 
     while (context->execution.count > 0)
     {
