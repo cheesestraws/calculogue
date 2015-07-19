@@ -93,7 +93,7 @@ static TLStack* source_stack(TLContext* context, char c)
         case ',': return &context->execution;
         case ';': return context->parent;
         case '.': return context->input;
-        default:  abort();
+        default:  return NULL;
     }
 }
 
@@ -105,7 +105,7 @@ static TLStack* target_stack(TLContext* context, char c)
         case ',': return &context->execution;
         case ';': return context->parent;
         case '.': return context->output;
-        default:  abort();
+        default:  return NULL;
     }
 }
 
@@ -468,6 +468,9 @@ extern void tl_execute(TLVM* vm)
             if (is_stack_name(*start))
             {
                 source = source_stack(context, *start);
+                if (!source)
+                    vm->panic(vm, "Invalid input stack: %c", *start);
+
                 start++;
             }
 
@@ -476,6 +479,9 @@ extern void tl_execute(TLVM* vm)
             if (end > start && is_stack_name(end[-1]))
             {
                 target = target_stack(context, end[-1]);
+                if (!target)
+                    vm->panic(vm, "Invalid output stack: %c", end[-1]);
+
                 end--;
             }
 
