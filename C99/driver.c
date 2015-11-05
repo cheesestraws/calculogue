@@ -32,7 +32,10 @@ static char* read_line(TLVM* vm)
         line = realloc(line, size);
 
         if (!fgets(line + length, size - length, stdin))
-            break;
+        {
+            free(line);
+            return NULL;
+        }
 
         length = strlen(line);
         if (length && (line[length - 1] == '\n' || line[length - 1] == '\r'))
