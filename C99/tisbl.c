@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <inttypes.h>
 
 #include "tisbl.h"
@@ -242,7 +243,7 @@ extern void tl_push_string(TLVM* vm, TLStack* target, char* s)
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
 {
     if (source->count == 0)
-        vm->panic(vm, "Stack underflow");
+        tl_panic(vm, "Stack underflow");
 
     return source->values[--source->count];
 }
@@ -250,7 +251,7 @@ extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
 extern TLValue tl_top_value(TLVM* vm, TLStack* source)
 {
     if (source->count == 0)
-        vm->panic(vm, "Stack underflow");
+        tl_panic(vm, "Stack underflow");
 
     return source->values[source->count - 1];
 }
@@ -261,8 +262,8 @@ extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source)
     if (!tl_is_integer(count))
     {
         TLValue string = tl_cast_value(count, TL_STRING);
-        vm->panic(vm, "Multipop count not an integer: %s (%s:%u)",
-                  string.s, tl_file(vm, string), tl_line(string));
+        tl_panic(vm, "Multipop count not an integer: %s (%s:%u)",
+                 string.s, tl_file(vm, string), tl_line(string));
     }
 
     tl_reserve(target, target->count + count.i);
@@ -451,7 +452,7 @@ extern void tl_execute(TLVM* vm)
         TLValue token = tl_pop_value(vm, &context->execution);
 
         if (tl_is_number(token))
-            vm->panic(vm, "Cannot execute number");
+            tl_panic(vm, "Cannot execute number");
 
         tl_clear_value(&context->token);
         context->token = tl_clone_value(token);
@@ -469,7 +470,7 @@ extern void tl_execute(TLVM* vm)
             {
                 source = source_stack(context, *start);
                 if (!source)
-                    vm->panic(vm, "Invalid input stack: %c", *start);
+                    tl_panic(vm, "Invalid input stack: %c", *start);
 
                 start++;
             }
@@ -480,7 +481,7 @@ extern void tl_execute(TLVM* vm)
             {
                 target = target_stack(context, end[-1]);
                 if (!target)
-                    vm->panic(vm, "Invalid output stack: %c", end[-1]);
+                    tl_panic(vm, "Invalid output stack: %c", end[-1]);
 
                 end--;
             }
@@ -488,11 +489,11 @@ extern void tl_execute(TLVM* vm)
             *end = '\0';
 
             if (!is_verb_name(start))
-                vm->panic(vm, "Illegal verb name: %s", start);
+                tl_panic(vm, "Illegal verb name: %s", start);
 
             TLVerb* verb = find_verb(vm, start);
             if (!verb)
-                vm->panic(vm, "Undefined verb: %s", start);
+                tl_panic(vm, "Undefined verb: %s", start);
 
             if (verb->proc)
                 verb->proc(vm, source, target);
@@ -521,7 +522,7 @@ extern void tl_execute(TLVM* vm)
                 else if (is_float(start))
                     tl_push_float(vm, target, strtod(start, NULL));
                 else
-                    vm->panic(vm, "Invalid number: %s", start);
+                    tl_panic(vm, "Invalid number: %s", start);
             }
             else if (*start == '\'')
             {
@@ -529,10 +530,25 @@ extern void tl_execute(TLVM* vm)
                 tl_push_string(vm, target, tl_clone_string(start));
             }
             else
-                vm->panic(vm, "Invalid token: %s", start);
+                tl_panic(vm, "Invalid token: %s", start);
         }
 
         tl_clear_value(&token);
     }
+}
+
+void tl_panic(TLVM* vm, const char* format, ...)
+{
+    va_list vl;
+    char buffer[8192];
+
+    va_start(vl, format);
+    const int result = vsnprintf(buffer, sizeof(buffer), format, vl);
+    va_end(vl);
+
+    if (result < 0)
+        vm->panic(vm, "Internal error");
+    else
+        vm->panic(vm, buffer);
 }
 

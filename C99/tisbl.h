@@ -25,7 +25,7 @@ typedef void TLVerbProc(TLVM* vm, TLStack* input, TLStack* output);
 typedef void TLOutputFn(TLVM* vm, const char* text);
 typedef char* TLInputFn(TLVM* vm);
 typedef void TLStepFn(TLVM* vm);
-typedef void TLPanicFn(TLVM* vm, const char* format, ...);
+typedef void TLPanicFn(TLVM* vm, const char* message);
 
 #define tl_is_integer(x) ((x).type == TL_INTEGER)
 #define tl_is_float(x) ((x).type == TL_FLOAT)
@@ -111,6 +111,7 @@ extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStac
 extern void tl_pop_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
 extern void tl_tokenize(TLVM* vm, const char* file, const char* text);
+extern void tl_panic(TLVM* vm, const char* format, ...);
 
 extern TLStack tl_new_stack(void);
 extern void tl_clear_stack(TLStack* stack);

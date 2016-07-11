@@ -123,8 +123,8 @@ static void stdlib_verb(TLVM* vm, TLStack* input, TLStack* output)
     if (tl_is_number(name))
     {
         TLValue string = tl_cast_value(name, TL_STRING);
-        vm->panic(vm, "Verb name not a string: %s (%s:%u)",
-                  string.s, tl_file(vm, string), tl_line(string));
+        tl_panic(vm, "Verb name not a string: %s (%s:%u)",
+                 string.s, tl_file(vm, string), tl_line(string));
     }
 
     TLStack code = tl_new_stack();

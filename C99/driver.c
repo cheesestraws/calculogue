@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <inttypes.h>
 
 #include "getopt.h"
@@ -110,10 +109,9 @@ static void step(TLVM* vm)
     print_stack(&context->execution);
 }
 
-static void panic(TLVM* vm, const char* format, ...)
+static void panic(TLVM* vm, const char* message)
 {
-    va_list vl;
-
+    fprintf(stderr, "%s\n", message);
     fprintf(stderr, "Call stack:\n");
 
     for (size_t i = 0;  i < vm->ccount;  i++)
@@ -125,11 +123,6 @@ static void panic(TLVM* vm, const char* format, ...)
                 tl_line(string));
     }
 
-    va_start(vl, format);
-    vfprintf(stderr, format, vl);
-    va_end(vl);
-
-    putchar('\n');
     exit(EXIT_FAILURE);
 }
 
