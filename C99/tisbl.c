@@ -451,11 +451,11 @@ extern void tl_execute(TLVM* vm)
         TLStack* source = &context->primary;
         TLValue token = tl_pop_value(vm, &context->execution);
 
-        if (tl_is_number(token))
-            tl_panic(vm, "Cannot execute number");
-
         tl_clear_value(&context->token);
         context->token = tl_clone_value(token);
+
+        if (tl_is_number(token))
+            tl_panic(vm, "Cannot execute number");
 
         if (vm->trace)
             vm->step(vm);
