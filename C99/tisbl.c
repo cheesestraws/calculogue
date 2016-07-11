@@ -227,17 +227,17 @@ extern void tl_push_value(TLStack* target, TLValue v)
 
 extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i)
 {
-    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER, tl_top_pos(vm) });
+    tl_push_value(target, (TLValue) { { .i = i }, TL_INTEGER, tl_top_loc(vm) });
 }
 
 extern void tl_push_float(TLVM* vm, TLStack* target, double f)
 {
-    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT, tl_top_pos(vm) });
+    tl_push_value(target, (TLValue) { { .f = f }, TL_FLOAT, tl_top_loc(vm) });
 }
 
 extern void tl_push_string(TLVM* vm, TLStack* target, char* s)
 {
-    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING, tl_top_pos(vm) });
+    tl_push_value(target, (TLValue) { { .s = s }, TL_STRING, tl_top_loc(vm) });
 }
 
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source)
@@ -374,7 +374,7 @@ extern void tl_clear_value(TLValue* v)
 extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 {
     size_t i;
-    TLPos pos = { 0, 1 };
+    TLLoc loc = { 0, 1 };
     TLStack tokens = tl_new_stack();
 
     for (i = 0;  i < vm->fcount;  i++)
@@ -390,7 +390,7 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
         vm->files[vm->fcount - 1] = tl_clone_string(file);
     }
 
-    pos.file = i;
+    loc.file = i;
 
     while (*text)
     {
@@ -402,7 +402,7 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
             {
                 if (is_newline(*end))
                 {
-                    pos.line++;
+                    loc.line++;
                     if (end[0] == '\r' && end[1] == '\n')
                         end++;
                 }
@@ -424,7 +424,7 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
             {
                 .s = tl_clone_string_range(text, end - text),
                 .type = TL_STRING,
-                .pos = pos
+                .loc = loc
             };
             tl_push_value(&tokens, token);
         }

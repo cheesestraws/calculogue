@@ -14,7 +14,7 @@ typedef enum
     TL_STRING, TL_INTEGER, TL_FLOAT
 } TLType;
 
-typedef struct TLPos TLPos;
+typedef struct TLLoc TLLoc;
 typedef struct TLValue TLValue;
 typedef struct TLContext TLContext;
 typedef struct TLVerb TLVerb;
@@ -33,15 +33,15 @@ typedef void TLPanicFn(TLVM* vm, const char* message);
 #define tl_is_number(x) ((x).type == TL_INTEGER || (x).type == TL_FLOAT)
 
 #define tl_top_context(vm) ((vm)->contexts[(vm)->ccount-1])
-#define tl_top_pos(vm) (tl_top_context(vm)->token.pos)
+#define tl_top_loc(vm) (tl_top_context(vm)->token.loc)
 #define tl_top_file(vm) tl_file(vm, tl_top_context(vm)->token)
 #define tl_top_line(vm) tl_line(tl_top_context(vm)->token)
-#define tl_file(vm, v) ((vm)->files[(v).pos.file])
-#define tl_line(v) ((v).pos.line)
+#define tl_file(vm, v) ((vm)->files[(v).loc.file])
+#define tl_line(v) ((v).loc.line)
 
 #pragma pack(push, 1)
 
-struct TLPos
+struct TLLoc
 {
     uint16_t file;
     uint16_t line;
@@ -56,7 +56,7 @@ struct TLValue
         double f;
     };
     uint32_t type;
-    TLPos pos;
+    TLLoc loc;
 };
 
 #pragma pack(pop)
