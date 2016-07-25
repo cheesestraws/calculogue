@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <inttypes.h>
 
 #include "getopt.h"
@@ -32,7 +31,10 @@ static char* read_line(TLVM* vm)
         line = realloc(line, size);
 
         if (!fgets(line + length, size - length, stdin))
-            break;
+        {
+            free(line);
+            return NULL;
+        }
 
         length = strlen(line);
         if (length && (line[length - 1] == '\n' || line[length - 1] == '\r'))
@@ -52,43 +54,53 @@ static void print(TLVM* vm, const char* text)
     printf("%s", text);
 }
 
+static void print_value(FILE* stream, const TLValue* value)
+{
+    switch (value->type)
+    {
+        case TL_INTEGER:
+            fprintf(stream, "%" PRIi64, value->i);
+            break;
+        case TL_FLOAT:
+            fprintf(stream, "%f", value->f);
+            break;
+        case TL_STRING:
+        {
+            const char* c = value->s;
+
+            fprintf(stream, "\"");
+            while (*c)
+            {
+                if (*c == '\t')
+                    fprintf(stream, "\\t");
+                else if (*c == '\n')
+                    fprintf(stream, "\\n");
+                else if (*c == '\r')
+                    fprintf(stream, "\\r");
+                else if (*c == '\\')
+                    fprintf(stream, "\\\\");
+                else if (*c == '\"')
+                    fprintf(stream, "\\\"");
+                else
+                    fputc(*c, stream);
+
+                c++;
+            }
+
+            fputc('\"', stream);
+            break;
+        }
+    }
+}
+
 static void print_stack(const TLStack* stack)
 {
     printf("[");
 
     for (size_t i = 0;  i < stack->count;  i++)
     {
-        switch (stack->values[i].type)
-        {
-            case TL_INTEGER:
-                printf(" i:%" PRIi64, stack->values[i].i);
-                break;
-            case TL_FLOAT:
-                printf(" f:%f", stack->values[i].f);
-                break;
-            case TL_STRING:
-            {
-                const char* c = stack->values[i].s;
-
-                printf(" s:\"");
-                while (*c)
-                {
-                    if (*c == '\t')
-                        printf("\\t");
-                    else if (*c == '\n')
-                        printf("\\n");
-                    else if (*c == '\r')
-                        printf("\\r");
-                    else
-                        putchar(*c);
-
-                    c++;
-                }
-
-                printf("\"");
-                break;
-            }
-        }
+        printf(" ");
+        print_value(stdout, stack->values + i);
     }
 
     printf(" ]\n");
@@ -107,26 +119,23 @@ static void step(TLVM* vm)
     print_stack(&context->execution);
 }
 
-static void panic(TLVM* vm, const char* format, ...)
+static void panic(TLVM* vm, const char* message)
 {
-    va_list vl;
-
+    fprintf(stderr, "%s:%u: error: %s\n",
+            tl_top_file(vm),
+            tl_top_line(vm),
+            message);
     fprintf(stderr, "Call stack:\n");
 
     for (size_t i = 0;  i < vm->ccount;  i++)
     {
-        TLValue string = tl_cast_value(vm->contexts[i]->token, TL_STRING);
-        fprintf(stderr, " %s (%s:%u)\n",
-                string.s,
-                tl_file(vm, string),
-                tl_line(string));
+        fprintf(stderr, "#%zu ", i);
+        print_value(stderr, &vm->contexts[i]->token);
+        fprintf(stderr, " (%s:%u)\n",
+                tl_file(vm, vm->contexts[i]->token),
+                tl_line(vm->contexts[i]->token));
     }
 
-    va_start(vl, format);
-    vfprintf(stderr, format, vl);
-    va_end(vl);
-
-    putchar('\n');
     exit(EXIT_FAILURE);
 }
 

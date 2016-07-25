@@ -14,7 +14,7 @@ typedef enum
     TL_STRING, TL_INTEGER, TL_FLOAT
 } TLType;
 
-typedef struct TLPos TLPos;
+typedef struct TLLoc TLLoc;
 typedef struct TLValue TLValue;
 typedef struct TLContext TLContext;
 typedef struct TLVerb TLVerb;
@@ -25,20 +25,23 @@ typedef void TLVerbProc(TLVM* vm, TLStack* input, TLStack* output);
 typedef void TLOutputFn(TLVM* vm, const char* text);
 typedef char* TLInputFn(TLVM* vm);
 typedef void TLStepFn(TLVM* vm);
-typedef void TLPanicFn(TLVM* vm, const char* format, ...);
+typedef void TLPanicFn(TLVM* vm, const char* message);
 
 #define tl_is_integer(x) ((x).type == TL_INTEGER)
 #define tl_is_float(x) ((x).type == TL_FLOAT)
 #define tl_is_string(x) ((x).type == TL_STRING)
 #define tl_is_number(x) ((x).type == TL_INTEGER || (x).type == TL_FLOAT)
 
-#define tl_pos(vm) ((vm)->contexts[(vm)->ccount-1]->token.pos)
-#define tl_file(vm, v) ((vm)->files[(v).pos.file])
-#define tl_line(v) ((v).pos.line)
+#define tl_top_context(vm) ((vm)->contexts[(vm)->ccount-1])
+#define tl_top_loc(vm) (tl_top_context(vm)->token.loc)
+#define tl_top_file(vm) tl_file(vm, tl_top_context(vm)->token)
+#define tl_top_line(vm) tl_line(tl_top_context(vm)->token)
+#define tl_file(vm, v) ((vm)->files[(v).loc.file])
+#define tl_line(v) ((v).loc.line)
 
 #pragma pack(push, 1)
 
-struct TLPos
+struct TLLoc
 {
     uint16_t file;
     uint16_t line;
@@ -53,7 +56,7 @@ struct TLValue
         double f;
     };
     uint32_t type;
-    TLPos pos;
+    TLLoc loc;
 };
 
 #pragma pack(pop)
@@ -106,9 +109,9 @@ extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPa
 extern void tl_clear_vm(TLVM* vm);
 extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output);
 extern void tl_pop_context(TLVM* vm);
-extern TLContext* tl_top_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
 extern void tl_tokenize(TLVM* vm, const char* file, const char* text);
+extern void tl_panic(TLVM* vm, const char* format, ...);
 
 extern TLStack tl_new_stack(void);
 extern void tl_clear_stack(TLStack* stack);
@@ -116,7 +119,7 @@ extern TLStack tl_clone_stack(const TLStack* stack);
 extern void tl_reserve(TLStack* stack, size_t capacity);
 extern void tl_push_value(TLStack* target, TLValue value);
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source);
-extern TLValue tl_peek_value(TLVM* vm, TLStack* source);
+extern TLValue tl_top_value(TLVM* vm, TLStack* source);
 extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source);
 extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i);
 extern void tl_push_float(TLVM* vm, TLStack* target, double f);
