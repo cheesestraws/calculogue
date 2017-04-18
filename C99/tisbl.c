@@ -420,13 +420,8 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
             while (*end && !is_whitespace(*end))
                 end++;
 
-            TLValue token =
-            {
-                .s = tl_clone_string_range(text, end - text),
-                .type = TL_STRING,
-                .loc = loc
-            };
-            tl_push_value(&tokens, token);
+            char* s = tl_clone_string_range(text, end - text);
+            tl_push_value(&tokens, (TLValue) { { .s = s }, TL_STRING, loc });
         }
 
         text = end;

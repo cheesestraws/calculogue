@@ -6,19 +6,16 @@
 
 #include "tisbl.h"
 
-static int64_t min(int64_t a, int64_t b)
+static int64_t clamp(int64_t value, int64_t min, int64_t max)
 {
-    return (a < b) ? a : b;
-}
-
-static int64_t max(int64_t a, int64_t b)
-{
-    return (a > b) ? a : b;
+    value = (value < min) ? min : value;
+    value = (value > max) ? max : value;
+    return value;
 }
 
 static char* sub_integer_from_string(const char* string, int64_t value)
 {
-    return tl_clone_string_range(string, max(min(strlen(string), value), 0));
+    return tl_clone_string_range(string, clamp(value, 0, strlen(string)));
 }
 
 static char* sub_string_from_string(const char* a, const char* b)
