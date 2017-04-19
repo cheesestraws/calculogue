@@ -196,7 +196,7 @@ int main(int argc, char** argv)
         fread(text, 1, size, file);
         fclose(file);
 
-        tl_tokenize(&vm, argv[0], text);
+        tl_tokenize(&vm, &tl_top_context(&vm)->execution, argv[0], text);
         free(text);
         tl_execute(&vm);
     }
@@ -210,7 +210,7 @@ int main(int argc, char** argv)
             if (!line)
                 break;
 
-            tl_tokenize(&vm, "(stdin)", line);
+            tl_tokenize(&vm, &tl_top_context(&vm)->execution, "(stdin)", line);
             free(line);
             tl_execute(&vm);
 

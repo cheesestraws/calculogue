@@ -381,7 +381,7 @@ extern void tl_clear_value(TLValue* v)
     memset(v, 0, sizeof(TLValue));
 }
 
-extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
+extern void tl_tokenize(TLVM* vm, TLStack* target, const char* file, const char* text)
 {
     size_t i;
     TLLoc loc = { 0, 1 };
@@ -436,8 +436,6 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 
         text = end;
     }
-
-    TLStack* target = &vm->contexts[0]->execution;
 
     tl_reserve(target, target->count + tokens.count);
     while (tokens.count)
