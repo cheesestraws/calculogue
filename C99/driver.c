@@ -177,7 +177,7 @@ int main(int argc, char** argv)
     TLVM vm = tl_new_vm(read_line, print, step, panic);
     vm.trace = trace;
     tl_register_stdlib(&vm);
-    tl_push_context(&vm, NULL, NULL, NULL);
+    tl_push_context(&vm, NULL, NULL, NULL, TL_RETURN);
 
     if (argc)
     {

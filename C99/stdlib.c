@@ -109,9 +109,7 @@ static void stdlib_exec(TLVM* vm, TLStack* input, TLStack* output)
 {
     TLStack code = tl_new_stack();
     tl_multipop(vm, &code, input);
-    tl_push_context(vm, &code, input, output);
-    tl_execute(vm);
-    tl_pop_context(vm);
+    tl_push_context(vm, &code, input, output, TL_CONTINUE);
 }
 
 static void stdlib_verb(TLVM* vm, TLStack* input, TLStack* output)
@@ -135,16 +133,10 @@ static void stdlib_if(TLVM* vm, TLStack* input, TLStack* output)
     TLStack code = tl_new_stack();
     tl_multipop(vm, &code, input);
 
-    TLValue cond = tl_pop_value(vm, input);
-    if (tl_bool(cond))
-    {
-        tl_push_context(vm, &code, input, output);
-        tl_execute(vm);
-        tl_pop_context(vm);
-    }
-
-    tl_clear_stack(&code);
-    tl_clear_value(&cond);
+    if (tl_pop_bool(vm, input))
+        tl_push_context(vm, &code, input, output, TL_CONTINUE);
+    else
+        tl_clear_stack(&code);
 }
 
 static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
@@ -152,23 +144,15 @@ static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
     TLStack code = tl_new_stack();
     tl_multipop(vm, &code, input);
 
-    for (;;)
+    if (tl_pop_bool(vm, input))
     {
-        TLValue cond = tl_pop_value(vm, input);
-        if (!tl_bool(cond))
-        {
-            tl_clear_value(&cond);
-            break;
-        }
-
-        TLStack clone = tl_clone_stack(&code);
-        tl_push_context(vm, &clone, input, output);
-        tl_execute(vm);
-        tl_pop_context(vm);
-        tl_clear_value(&cond);
+        tl_push_context(vm, &code, input, output, TL_LOOP);
+        TLContext* context = tl_top_context(vm);
+        context->loop = tl_clone_stack(&context->execution);
+        context->cond = input;
     }
-
-    tl_clear_stack(&code);
+    else
+        tl_clear_stack(&code);
 }
 
 static void stdlib_eq(TLVM* vm, TLStack* input, TLStack* output)

@@ -14,6 +14,11 @@ typedef enum
     TL_STRING, TL_INTEGER, TL_FLOAT
 } TLType;
 
+typedef enum
+{
+    TL_CONTINUE, TL_LOOP, TL_RETURN
+} TLFinal;
+
 typedef struct TLLoc TLLoc;
 typedef struct TLValue TLValue;
 typedef struct TLContext TLContext;
@@ -73,10 +78,13 @@ struct TLContext
     TLStack primary;
     TLStack secondary;
     TLStack execution;
+    TLStack loop;
     TLStack* input;
     TLStack* output;
     TLStack* parent;
+    TLStack* cond;
     TLValue token;
+    TLFinal final;
 };
 
 struct TLVerb
@@ -107,7 +115,7 @@ extern char* tl_append_strings(const char* a, const char* b);
 
 extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPanicFn* panic);
 extern void tl_clear_vm(TLVM* vm);
-extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output);
+extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final);
 extern void tl_pop_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
 extern void tl_tokenize(TLVM* vm, const char* file, const char* text);
@@ -120,6 +128,7 @@ extern void tl_reserve(TLStack* stack, size_t capacity);
 extern void tl_push_value(TLStack* target, TLValue value);
 extern TLValue tl_pop_value(TLVM* vm, TLStack* source);
 extern TLValue tl_top_value(TLVM* vm, TLStack* source);
+extern bool tl_pop_bool(TLVM* vm, TLStack* source);
 extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source);
 extern void tl_push_integer(TLVM* vm, TLStack* target, int64_t i);
 extern void tl_push_float(TLVM* vm, TLStack* target, double f);

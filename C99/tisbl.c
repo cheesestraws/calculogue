@@ -155,11 +155,12 @@ extern void tl_clear_vm(TLVM* vm)
     memset(vm, 0, sizeof(TLVM));
 }
 
-extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output)
+extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final)
 {
     TLContext* context = calloc(1, sizeof(TLContext));
     context->input = input;
     context->output = output;
+    context->final = final;
 
     if (execution)
     {
@@ -181,6 +182,7 @@ extern void tl_pop_context(TLVM* vm)
     tl_clear_stack(&context->primary);
     tl_clear_stack(&context->secondary);
     tl_clear_stack(&context->execution);
+    tl_clear_stack(&context->loop);
     tl_clear_value(&context->token);
     free(context);
     vm->ccount--;
@@ -254,6 +256,14 @@ extern TLValue tl_top_value(TLVM* vm, TLStack* source)
         tl_panic(vm, "Stack underflow");
 
     return source->values[source->count - 1];
+}
+
+extern bool tl_pop_bool(TLVM* vm, TLStack* source)
+{
+    TLValue value = tl_pop_value(vm, source);
+    const bool result = tl_bool(value);
+    tl_clear_value(&value);
+    return result;
 }
 
 extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source)
@@ -438,10 +448,26 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 
 extern void tl_execute(TLVM* vm)
 {
-    TLContext* context = tl_top_context(vm);
-
-    while (context->execution.count > 0)
+    while (vm->ccount > 0)
     {
+        TLContext* context = tl_top_context(vm);
+
+        if (context->execution.count == 0)
+        {
+            if (context->final == TL_RETURN)
+                return;
+
+            if (context->final == TL_LOOP && tl_pop_bool(vm, context->cond))
+            {
+                tl_clear_stack(&context->execution);
+                context->execution = tl_clone_stack(&context->loop);
+            }
+            else
+                tl_pop_context(vm);
+
+            continue;
+        }
+
         TLStack* target = &context->primary;
         TLStack* source = &context->primary;
         TLValue token = tl_pop_value(vm, &context->execution);
@@ -495,9 +521,7 @@ extern void tl_execute(TLVM* vm)
             else
             {
                 TLStack clone = tl_clone_stack(&verb->code);
-                tl_push_context(vm, &clone, source, target);
-                tl_execute(vm);
-                tl_pop_context(vm);
+                tl_push_context(vm, &clone, source, target, TL_CONTINUE);
             }
         }
         else
