@@ -49,7 +49,7 @@ typedef void TLPanicProc(TLVM* vm, const char* message);
 struct TLLoc
 {
     uint16_t file;
-    uint16_t line;
+    uint32_t line;
 };
 
 struct TLValue
@@ -60,7 +60,7 @@ struct TLValue
         int64_t i;
         double f;
     };
-    uint32_t type;
+    uint16_t type;
     TLLoc loc;
 };
 
