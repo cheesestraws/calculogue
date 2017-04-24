@@ -130,7 +130,7 @@ extern char* tl_append_strings(const char* a, const char* b)
     return result;
 }
 
-extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPanicFn* panic)
+extern TLVM tl_new_vm(TLInputProc* input, TLOutputProc* output, TLStepProc* step, TLPanicProc* panic)
 {
     return (TLVM) { NULL, 0, NULL, 0, false, input, output, step, panic };
 }

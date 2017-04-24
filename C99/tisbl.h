@@ -27,10 +27,10 @@ typedef struct TLVM TLVM;
 typedef struct TLStack TLStack;
 
 typedef void TLVerbProc(TLVM* vm, TLStack* input, TLStack* output);
-typedef void TLOutputFn(TLVM* vm, const char* text);
-typedef char* TLInputFn(TLVM* vm);
-typedef void TLStepFn(TLVM* vm);
-typedef void TLPanicFn(TLVM* vm, const char* message);
+typedef void TLOutputProc(TLVM* vm, const char* text);
+typedef char* TLInputProc(TLVM* vm);
+typedef void TLStepProc(TLVM* vm);
+typedef void TLPanicProc(TLVM* vm, const char* message);
 
 #define tl_is_integer(x) ((x).type == TL_INTEGER)
 #define tl_is_float(x) ((x).type == TL_FLOAT)
@@ -101,10 +101,10 @@ struct TLVM
     TLVerb* verbs;
     size_t vcount;
     bool trace;
-    TLInputFn* input;
-    TLOutputFn* output;
-    TLStepFn* step;
-    TLPanicFn* panic;
+    TLInputProc* input;
+    TLOutputProc* output;
+    TLStepProc* step;
+    TLPanicProc* panic;
     char** files;
     size_t fcount;
 };
@@ -113,7 +113,7 @@ extern char* tl_clone_string_range(const char* source, size_t length);
 extern char* tl_clone_string(const char* source);
 extern char* tl_append_strings(const char* a, const char* b);
 
-extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPanicFn* panic);
+extern TLVM tl_new_vm(TLInputProc* input, TLOutputProc* output, TLStepProc* step, TLPanicProc* panic);
 extern void tl_clear_vm(TLVM* vm);
 extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final);
 extern void tl_pop_context(TLVM* vm);
