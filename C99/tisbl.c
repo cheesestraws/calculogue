@@ -381,26 +381,30 @@ extern void tl_clear_value(TLValue* v)
     memset(v, 0, sizeof(TLValue));
 }
 
-extern void tl_tokenize(TLVM* vm, TLStack* target, const char* file, const char* text)
+extern TLLoc tl_new_loc(TLVM* vm, const char* file, uint16_t line)
 {
-    size_t i;
-    TLLoc loc = { 0, 1 };
-    TLStack tokens = tl_new_stack();
+    TLLoc loc = { 0, line };
 
-    for (i = 0;  i < vm->fcount;  i++)
+    for ( ;  loc.file < vm->fcount;  loc.file++)
     {
-        if (strcmp(vm->files[i], file) == 0)
+        if (strcmp(vm->files[loc.file], file) == 0)
             break;
     }
 
-    if (i == vm->fcount)
+    if (loc.file == vm->fcount)
     {
         vm->fcount++;
         vm->files = realloc(vm->files, vm->fcount * sizeof(char*));
         vm->files[vm->fcount - 1] = tl_clone_string(file);
     }
 
-    loc.file = i;
+    return loc;
+}
+
+extern void tl_tokenize(TLVM* vm, TLStack* target, const char* file, const char* text)
+{
+    TLLoc loc = tl_new_loc(vm, file, 1);
+    TLStack tokens = tl_new_stack();
 
     while (*text)
     {

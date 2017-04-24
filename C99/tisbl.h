@@ -118,6 +118,7 @@ extern void tl_clear_vm(TLVM* vm);
 extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final);
 extern void tl_pop_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
+extern TLLoc tl_new_loc(TLVM* vm, const char* file, uint16_t line);
 extern void tl_tokenize(TLVM* vm, TLStack* target, const char* file, const char* text);
 extern void tl_panic(TLVM* vm, const char* format, ...);
 
