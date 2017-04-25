@@ -52,6 +52,12 @@ static char* read_line(TLVM* vm)
 static void print(TLVM* vm, const char* text)
 {
     printf("%s", text);
+    if (vm->trace)
+    {
+        const size_t length = strlen(text);
+        if (length > 0 && text[length - 1] != '\n')
+            putchar('\n');
+    }
 }
 
 static void print_value(FILE* stream, const TLValue* value)
@@ -110,13 +116,23 @@ static void step(TLVM* vm)
 {
     const TLContext* context = vm->contexts[vm->ccount - 1];
 
-    printf("T %s\n", context->token.s);
-    printf("P ");
+    printf("(Depth %i) %s\n", vm->ccount - 1, context->token.s);
+    printf("  Primary     ");
     print_stack(&context->primary);
-    printf("S ");
+    printf("  Secondary : ");
     print_stack(&context->secondary);
-    printf("C ");
+    printf("  Execution , ");
     print_stack(&context->execution);
+
+    if (context->parent)
+    {
+        printf("  Input     . ");
+        print_stack(context->input);
+        printf("  Output    . ");
+        print_stack(context->output);
+        printf("  Parent    ; ");
+        print_stack(context->parent);
+    }
 }
 
 static void panic(TLVM* vm, const char* message)
