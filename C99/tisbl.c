@@ -47,14 +47,6 @@ static bool is_float(const char* s)
     return *s == '\0';
 }
 
-static bool is_verb_name(const char* s)
-{
-    while (*s && !is_whitespace(*s) && !is_stack_name(*s))
-        s++;
-
-    return *s == '\0';
-}
-
 static TLVerb* find_verb(TLVM* vm, const char* name)
 {
     for (int i = 0;  i < vm->vcount;  i++)
@@ -68,7 +60,14 @@ static TLVerb* find_verb(TLVM* vm, const char* name)
 
 static TLVerb* find_or_create_verb(TLVM* vm, const char* name)
 {
+    for (const char* c = name;  *c;  c++)
+    {
+        if (is_whitespace(*c) || is_stack_name(*c))
+            tl_panic(vm, "Illegal verb name: %s", name);
+    }
+
     TLVerb* verb = find_verb(vm, name);
+
     if (verb)
     {
         tl_clear_stack(&verb->code);
@@ -510,9 +509,6 @@ extern void tl_execute(TLVM* vm)
             }
 
             *end = '\0';
-
-            if (!is_verb_name(start))
-                tl_panic(vm, "Illegal verb name: %s", start);
 
             TLVerb* verb = find_verb(vm, start);
             if (!verb)
