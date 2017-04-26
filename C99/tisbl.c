@@ -47,17 +47,6 @@ static bool is_float(const char* s)
     return *s == '\0';
 }
 
-static TLVerb* find_verb(TLVM* vm, const char* name)
-{
-    for (int i = 0;  i < vm->vcount;  i++)
-    {
-        if (strcmp(vm->verbs[i].name, name) == 0)
-            return vm->verbs + i;
-    }
-
-    return NULL;
-}
-
 static TLVerb* find_or_create_verb(TLVM* vm, const char* name)
 {
     for (const char* c = name;  *c;  c++)
@@ -66,7 +55,16 @@ static TLVerb* find_or_create_verb(TLVM* vm, const char* name)
             tl_panic(vm, "Illegal verb name: %s", name);
     }
 
-    TLVerb* verb = find_verb(vm, name);
+    TLVerb* verb = NULL;
+
+    for (size_t i = 0;  i < vm->vcount;  i++)
+    {
+        if (strcmp(vm->verbs[i].name, name) == 0)
+        {
+            verb = vm->verbs + i;
+            break;
+        }
+    }
 
     if (verb)
     {
@@ -471,18 +469,17 @@ extern void tl_execute(TLVM* vm)
 
         TLStack* target = &context->primary;
         TLStack* source = &context->primary;
-        TLValue token = tl_pop_value(vm, &context->execution);
 
         tl_clear_value(&context->token);
-        context->token = tl_clone_value(token);
+        context->token = tl_pop_value(vm, &context->execution);
 
-        if (tl_is_number(token))
+        if (tl_is_number(context->token))
             tl_panic(vm, "Cannot execute number");
 
         if (vm->trace)
             vm->step(vm);
 
-        char* start = token.s;
+        const char* start = context->token.s;
 
         if (*start == '\\')
         {
@@ -497,7 +494,7 @@ extern void tl_execute(TLVM* vm)
                 start++;
             }
 
-            char* end = start + strlen(start);
+            const char* end = start + strlen(start);
 
             if (end > start && is_stack_name(end[-1]))
             {
@@ -508,11 +505,23 @@ extern void tl_execute(TLVM* vm)
                 end--;
             }
 
-            *end = '\0';
+            TLVerb* verb = NULL;
 
-            TLVerb* verb = find_verb(vm, start);
+            for (size_t i = 0;  i < vm->vcount;  i++)
+            {
+                if (strncmp(vm->verbs[i].name, start, end - start) == 0 &&
+                    vm->verbs[i].name[end - start] == '\0')
+                {
+                    verb = vm->verbs + i;
+                    break;
+                }
+            }
+
             if (!verb)
-                tl_panic(vm, "Undefined verb: %s", start);
+            {
+                char* name = tl_clone_string_range(start, end - start);
+                tl_panic(vm, "Undefined verb: %s", name);
+            }
 
             if (verb->proc)
                 verb->proc(vm, source, target);
@@ -549,8 +558,6 @@ extern void tl_execute(TLVM* vm)
             else
                 tl_panic(vm, "Invalid token: %s", start);
         }
-
-        tl_clear_value(&token);
     }
 }
 
