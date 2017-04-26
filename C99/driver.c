@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <inttypes.h>
 
 #include "getopt.h"
@@ -200,7 +201,7 @@ int main(int argc, char** argv)
         FILE* file = fopen(argv[0], "rb");
         if (!file)
         {
-            fprintf(stderr, "Failed to open file\n");
+            fprintf(stderr, "%s: Failed to open file: %s\n", argv[0], strerror(errno));
             exit(EXIT_FAILURE);
         }
 
