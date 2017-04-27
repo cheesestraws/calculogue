@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:	TISBL
 " Maintainer:	Camilla Löwy <dreda@dreda.org>
-" Last Change:	Sep 22, 2013
+" Last Change:	Apr 24, 2017
 " File Types:   .t
 " Version:      0.1
 
@@ -9,7 +9,7 @@ if exists("b:current_syntax")
   finish
 endif
 
-setlocal iskeyword=a-z,A-Z,48-57,_,.,-,\\,+,\:,;,#,\,,',?
+setlocal iskeyword=a-z,A-Z,48-57,_,.,-,\\,+,\:,;,#,\,,',?,=
 
 syn match tisblNumber         display /\<[,.:;]\?#\d\+\>/ contains=tisblNounStack
 syn match tisblNumber         display /\<[,.:;]\?#\d\+.\d\+\>/ contains=tisblNounStack
@@ -20,7 +20,7 @@ syn match tisblVerb           display /\<\\[^ ]\+\>/ contains=tisblVerbStack
 syn match tisblVerbStack      display contained /\<\\[,.:;]\?/
 syn match tisblVerbStack      display contained /[,.:;]\>/
 
-syn match tisblNounStack      display contained /\<[,.:;]/
+syn match tisblNounStack      display contained /\<[,.:;]\?['#]/
 
 syn match tisblComment        display /%.*$/ contains=tisblCommentTodo,@Spell
 syn keyword tisblCommentTodo  contained TODO FIXME XXX

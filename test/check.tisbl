@@ -1,0 +1,104 @@
+% \trace=0  - Commented out as my CS interpreter doesn't yet understand this
+
+'PASS_\out \n \out
+#1 '.'PASS_If_statement_1 #1 \if \n \out
+'PASS_If_statement_0 #0 '.'FAIL_If_statement_0 #1 \if \n \out
+
+'PASS_End_of_line_comments \n \out % test comment
+% Test whole line comment
+'PASS_Whole_line_comments \n \out
+
+% === Totally Insane Sanity Check
+% === Tests a TISBL interpreter for vague sanity
+
+% We can assume that basic stuff for running tests and reporting is working at this point,
+% so let us do some proper tests
+
+% Parsing ints
+#3 'PASS_parse_int \n \out
+
+% Removing items
+#1 #0 \rm '.'PASS_remove_int #1 \if \n \out
+
+% Remove the 3 we put on the stack in the last test
+\rm
+
+% Checking for equality - assumes that \eq? is defined in your interpreter!
+#3 #3 \eq? '.'PASS_Int_equality_true #1 \if \n \out
+'PASS_Int_equality_false #3 #4 \eq? '.'FAIL_Int_equality_false #1 \if \n \out
+
+% Adding ints
+#3 #4 \+ #7 \eq? '.'PASS_Int_addition #1 \if \n \out
+
+% Parsing floats
+#3.5 'PASS_parse_float \n \out \rm
+
+% Adding floats
+#4.5 #3.5 \+ #8.0 \eq? '.'PASS_Float_addition #1 \if \n \out
+
+% If on second data stack
+:#1 :'.'PASS_Parse_to_: :#1 \:if \n \out
+
+% Adding onto second data stack
+#4.5 #3.5 \+: :#8.0 \:eq? '.'PASS_Float_addition_to_: #1 \if \n \out
+
+% Adding from second data stack
+:#4.5 :#3.5 \:+ #8.0 \eq? '.'PASS_Float_addition_from_: #1 \if \n \out
+
+% Removing from the execution stack
+#1 \,rm #0 '.'PASS_Remove_from_, #1 \if \n \out
+
+% Adding to the execution stack
+:''PASS_ :'Add_to_, \:+: \:dup, \n \out
+
+% Defining user verbs
+''PASS_ ''Create_verb_and_run '\+ '\n '\out #5
+'test \verb
+\test
+
+% Verb parameters
+'\.mv '#2 '\* '\dup. #4 'test2 \verb
+#3.5 \test2 #7 \eq? '.'PASS_Verb_parameters #1 \if \n \out
+
+% Test simple programs
+
+% Sum a list of numbers
+
+% \total:
+ % Cheating!
+ % Oh, this is evil
+ '\.dup '\.dup;
+ 
+ '\.multipop: % move list onto secondary data stack
+ '\mv: % copy the count back to the top of the secondary data stack
+ 
+ % The secondary D.S. now has the list /backwards/ so we need to reverse it again
+ '\:multipop '\;dup % and then we copy the the count back off the parent's exec stack
+ 
+ % if we have no items then return #0
+ '\not ''.#0 '#1 '\if  % if it's a 0 then return a 0.
+ 
+ '\;mv % copy the count to use for a while, again
+ '#1 '\- % subtract one from it for the number of times we need to call \+
+ '\dup  % copy this; the \while pops this and we need it in the body of the loop
+ 
+  % move the count onto our secondary
+  ''\.mv:
+  % subtract 1 from it
+  '':#1 ''\:-:
+  % Call \+.  We know that our input and output stacks are symmetrical
+  ''\.+.
+  % And put our counter back, twice
+  ''\:dup.
+  ''\:mv.
+ '#6 '\while
+ '\rm % get rid of the extraneous 0 left on the stack after the \while
+ '\mv.
+#24 'total \verb
+
+#4 #5 #6 #3 \total #15 \eq? '.'PASS_Total_example #1 \if \n \out
+
+'The_following_line_should_be_an_error_message. \n \out 
+
+% Test error
+\error

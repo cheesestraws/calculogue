@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <inttypes.h>
 
 #include "getopt.h"
@@ -52,6 +53,12 @@ static char* read_line(TLVM* vm)
 static void print(TLVM* vm, const char* text)
 {
     printf("%s", text);
+    if (vm->trace)
+    {
+        const size_t length = strlen(text);
+        if (length > 0 && text[length - 1] != '\n')
+            putchar('\n');
+    }
 }
 
 static void print_value(FILE* stream, const TLValue* value)
@@ -110,13 +117,23 @@ static void step(TLVM* vm)
 {
     const TLContext* context = vm->contexts[vm->ccount - 1];
 
-    printf("T %s\n", context->token.s);
-    printf("P ");
+    printf("(Depth %i) %s\n", vm->ccount - 1, context->token.s);
+    printf("  Primary     ");
     print_stack(&context->primary);
-    printf("S ");
+    printf("  Secondary : ");
     print_stack(&context->secondary);
-    printf("C ");
+    printf("  Execution , ");
     print_stack(&context->execution);
+
+    if (context->parent)
+    {
+        printf("  Input     . ");
+        print_stack(context->input);
+        printf("  Output    . ");
+        print_stack(context->output);
+        printf("  Parent    ; ");
+        print_stack(context->parent);
+    }
 }
 
 static void panic(TLVM* vm, const char* message)
@@ -177,14 +194,14 @@ int main(int argc, char** argv)
     TLVM vm = tl_new_vm(read_line, print, step, panic);
     vm.trace = trace;
     tl_register_stdlib(&vm);
-    tl_push_context(&vm, NULL, NULL, NULL);
+    tl_push_context(&vm, NULL, NULL, NULL, TL_RETURN);
 
     if (argc)
     {
         FILE* file = fopen(argv[0], "rb");
         if (!file)
         {
-            fprintf(stderr, "Failed to open file\n");
+            fprintf(stderr, "%s: Failed to open file: %s\n", argv[0], strerror(errno));
             exit(EXIT_FAILURE);
         }
 
@@ -196,7 +213,7 @@ int main(int argc, char** argv)
         fread(text, 1, size, file);
         fclose(file);
 
-        tl_tokenize(&vm, argv[0], text);
+        tl_tokenize(&vm, &tl_top_context(&vm)->execution, argv[0], text);
         free(text);
         tl_execute(&vm);
     }
@@ -210,7 +227,7 @@ int main(int argc, char** argv)
             if (!line)
                 break;
 
-            tl_tokenize(&vm, "(stdin)", line);
+            tl_tokenize(&vm, &tl_top_context(&vm)->execution, "(stdin)", line);
             free(line);
             tl_execute(&vm);
 

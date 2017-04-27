@@ -47,28 +47,25 @@ static bool is_float(const char* s)
     return *s == '\0';
 }
 
-static bool is_verb_name(const char* s)
-{
-    while (*s && !is_whitespace(*s) && !is_stack_name(*s))
-        s++;
-
-    return *s == '\0';
-}
-
-static TLVerb* find_verb(TLVM* vm, const char* name)
-{
-    for (int i = 0;  i < vm->vcount;  i++)
-    {
-        if (strcmp(vm->verbs[i].name, name) == 0)
-            return vm->verbs + i;
-    }
-
-    return NULL;
-}
-
 static TLVerb* find_or_create_verb(TLVM* vm, const char* name)
 {
-    TLVerb* verb = find_verb(vm, name);
+    for (const char* c = name;  *c;  c++)
+    {
+        if (is_whitespace(*c) || is_stack_name(*c))
+            tl_panic(vm, "Illegal verb name: %s", name);
+    }
+
+    TLVerb* verb = NULL;
+
+    for (size_t i = 0;  i < vm->vcount;  i++)
+    {
+        if (strcmp(vm->verbs[i].name, name) == 0)
+        {
+            verb = vm->verbs + i;
+            break;
+        }
+    }
+
     if (verb)
     {
         tl_clear_stack(&verb->code);
@@ -130,7 +127,7 @@ extern char* tl_append_strings(const char* a, const char* b)
     return result;
 }
 
-extern TLVM tl_new_vm(TLInputFn* input, TLOutputFn* output, TLStepFn* step, TLPanicFn* panic)
+extern TLVM tl_new_vm(TLInputProc* input, TLOutputProc* output, TLStepProc* step, TLPanicProc* panic)
 {
     return (TLVM) { NULL, 0, NULL, 0, false, input, output, step, panic };
 }
@@ -155,11 +152,12 @@ extern void tl_clear_vm(TLVM* vm)
     memset(vm, 0, sizeof(TLVM));
 }
 
-extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output)
+extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final)
 {
     TLContext* context = calloc(1, sizeof(TLContext));
     context->input = input;
     context->output = output;
+    context->final = final;
 
     if (execution)
     {
@@ -181,6 +179,7 @@ extern void tl_pop_context(TLVM* vm)
     tl_clear_stack(&context->primary);
     tl_clear_stack(&context->secondary);
     tl_clear_stack(&context->execution);
+    tl_clear_stack(&context->loop);
     tl_clear_value(&context->token);
     free(context);
     vm->ccount--;
@@ -254,6 +253,14 @@ extern TLValue tl_top_value(TLVM* vm, TLStack* source)
         tl_panic(vm, "Stack underflow");
 
     return source->values[source->count - 1];
+}
+
+extern bool tl_pop_bool(TLVM* vm, TLStack* source)
+{
+    TLValue value = tl_pop_value(vm, source);
+    const bool result = tl_bool(value);
+    tl_clear_value(&value);
+    return result;
 }
 
 extern void tl_multipop(TLVM* vm, TLStack* target, TLStack* source)
@@ -371,26 +378,30 @@ extern void tl_clear_value(TLValue* v)
     memset(v, 0, sizeof(TLValue));
 }
 
-extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
+extern TLLoc tl_new_loc(TLVM* vm, const char* file, uint16_t line)
 {
-    size_t i;
-    TLLoc loc = { 0, 1 };
-    TLStack tokens = tl_new_stack();
+    TLLoc loc = { 0, line };
 
-    for (i = 0;  i < vm->fcount;  i++)
+    for ( ;  loc.file < vm->fcount;  loc.file++)
     {
-        if (strcmp(vm->files[i], file) == 0)
+        if (strcmp(vm->files[loc.file], file) == 0)
             break;
     }
 
-    if (i == vm->fcount)
+    if (loc.file == vm->fcount)
     {
         vm->fcount++;
         vm->files = realloc(vm->files, vm->fcount * sizeof(char*));
         vm->files[vm->fcount - 1] = tl_clone_string(file);
     }
 
-    loc.file = i;
+    return loc;
+}
+
+extern void tl_tokenize(TLVM* vm, TLStack* target, const char* file, const char* text)
+{
+    TLLoc loc = tl_new_loc(vm, file, 1);
+    TLStack tokens = tl_new_stack();
 
     while (*text)
     {
@@ -420,19 +431,12 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
             while (*end && !is_whitespace(*end))
                 end++;
 
-            TLValue token =
-            {
-                .s = tl_clone_string_range(text, end - text),
-                .type = TL_STRING,
-                .loc = loc
-            };
-            tl_push_value(&tokens, token);
+            char* s = tl_clone_string_range(text, end - text);
+            tl_push_value(&tokens, (TLValue) { { .s = s }, TL_STRING, loc });
         }
 
         text = end;
     }
-
-    TLStack* target = &vm->contexts[0]->execution;
 
     tl_reserve(target, target->count + tokens.count);
     while (tokens.count)
@@ -443,24 +447,39 @@ extern void tl_tokenize(TLVM* vm, const char* file, const char* text)
 
 extern void tl_execute(TLVM* vm)
 {
-    TLContext* context = tl_top_context(vm);
-
-    while (context->execution.count > 0)
+    while (vm->ccount > 0)
     {
+        TLContext* context = tl_top_context(vm);
+
+        if (context->execution.count == 0)
+        {
+            if (context->final == TL_RETURN)
+                return;
+
+            if (context->final == TL_LOOP && tl_pop_bool(vm, context->cond))
+            {
+                tl_clear_stack(&context->execution);
+                context->execution = tl_clone_stack(&context->loop);
+            }
+            else
+                tl_pop_context(vm);
+
+            continue;
+        }
+
         TLStack* target = &context->primary;
         TLStack* source = &context->primary;
-        TLValue token = tl_pop_value(vm, &context->execution);
 
         tl_clear_value(&context->token);
-        context->token = tl_clone_value(token);
+        context->token = tl_pop_value(vm, &context->execution);
 
-        if (tl_is_number(token))
+        if (tl_is_number(context->token))
             tl_panic(vm, "Cannot execute number");
 
         if (vm->trace)
             vm->step(vm);
 
-        char* start = token.s;
+        const char* start = context->token.s;
 
         if (*start == '\\')
         {
@@ -475,7 +494,7 @@ extern void tl_execute(TLVM* vm)
                 start++;
             }
 
-            char* end = start + strlen(start);
+            const char* end = start + strlen(start);
 
             if (end > start && is_stack_name(end[-1]))
             {
@@ -486,23 +505,30 @@ extern void tl_execute(TLVM* vm)
                 end--;
             }
 
-            *end = '\0';
+            TLVerb* verb = NULL;
 
-            if (!is_verb_name(start))
-                tl_panic(vm, "Illegal verb name: %s", start);
+            for (size_t i = 0;  i < vm->vcount;  i++)
+            {
+                if (strncmp(vm->verbs[i].name, start, end - start) == 0 &&
+                    vm->verbs[i].name[end - start] == '\0')
+                {
+                    verb = vm->verbs + i;
+                    break;
+                }
+            }
 
-            TLVerb* verb = find_verb(vm, start);
             if (!verb)
-                tl_panic(vm, "Undefined verb: %s", start);
+            {
+                char* name = tl_clone_string_range(start, end - start);
+                tl_panic(vm, "Undefined verb: %s", name);
+            }
 
             if (verb->proc)
                 verb->proc(vm, source, target);
             else
             {
                 TLStack clone = tl_clone_stack(&verb->code);
-                tl_push_context(vm, &clone, source, target);
-                tl_execute(vm);
-                tl_pop_context(vm);
+                tl_push_context(vm, &clone, source, target, TL_CONTINUE);
             }
         }
         else
@@ -532,8 +558,6 @@ extern void tl_execute(TLVM* vm)
             else
                 tl_panic(vm, "Invalid token: %s", start);
         }
-
-        tl_clear_value(&token);
     }
 }
 
