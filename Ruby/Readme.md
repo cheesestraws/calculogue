@@ -19,6 +19,8 @@ Hello World!
 $
 ```
 
+To run a file with tracing initially enabled, specify `--trace`.
+
 If no file is specified, a REPL is started.
 
 ```

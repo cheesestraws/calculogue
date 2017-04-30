@@ -9,15 +9,20 @@ $verbs = {}
 require 'stdlib'
 
 class Context
-    def initialize(code = [])
+    def initialize(code = [], parent = nil)
+        @parent = parent
         @stacks = {}
         @stacks[:p] = []
         @stacks[:s] = []
         @stacks[:c] = code
+        @depth = 0
+        @depth = parent.depth + 1 if @parent
     end
 
+    attr_reader :depth, :parent
+
     def fork(code, i, o)
-        copy = Context.new(code)
+        copy = Context.new(code, self)
         copy[:i] = @stacks[i]
         copy[:o] = @stacks[o]
         copy[:e] = @stacks[:c]
@@ -32,6 +37,18 @@ class Context
         @stacks[n] = v
     end
 
+    def trace(token)
+        puts "(Depth #{@depth}) #{escape(token)}"
+        puts "  Primary     [ #{@stacks[:p].map{ |s| escape(s) }.join(' ')} ]"
+        puts "  Secondary : [ #{@stacks[:s].map{ |s| escape(s) }.join(' ')} ]"
+        puts "  Execution , [ #{@stacks[:c].map{ |s| escape(s) }.join(' ')} ]"
+        if @parent
+            puts "  Input     . [ #{@stacks[:i].map{ |s| escape(s) }.join(' ')} ]"
+            puts "  Output    . [ #{@stacks[:o].map{ |s| escape(s) }.join(' ')} ]"
+            puts "  Parent    ; [ #{@stacks[:e].map{ |s| escape(s) }.join(' ')} ]"
+        end
+    end
+
     def execute
         inames = { '' => :p, ':' => :s, '.' => :i, ',' => :c, ';' => :e }
         onames = { '' => :p, ':' => :s, '.' => :o, ',' => :c, ';' => :e }
@@ -40,13 +57,7 @@ class Context
             token = @stacks[:c].pop
             error "Cannot execute number" unless token.is_a?(String)
 
-            if $trace
-                puts "T #{escape(token)}"
-                puts "P [ #{@stacks[:p].map{ |s| escape(s) }.join ' '} ]"
-                puts "S [ #{@stacks[:s].map{ |s| escape(s) }.join ' '} ]"
-                puts "C [ #{@stacks[:c].map{ |s| escape(s) }.join ' '} ]"
-                puts
-            end
+            trace(token) if $trace
 
             case token
             when /^\\([,.:;]?)([^,.:;]+)([,.:;]?)$/
@@ -100,13 +111,10 @@ def error(message)
 end
 
 def escape(t)
-    case
-    when t.is_a?(Fixnum)
-        "i:#{t}"
-    when t.is_a?(Float)
-        "f:#{t}"
+    if t.is_a?(String)
+        t.dump
     else
-        "s:#{t.dump}"
+        t.to_s
     end
 end
 
@@ -119,6 +127,11 @@ if ARGV.empty?
         puts
     end
 else
+    until ARGV.empty? or ARGV[0][0,2] != '--' do
+        arg = ARGV.shift
+        $trace = true if arg == '--trace'
+        break         if arg == '--'
+    end
     begin
         File.open(ARGV[0]) do |file|
         Context.new(file.read.gsub(/%.*$/, '').split.reverse).execute
