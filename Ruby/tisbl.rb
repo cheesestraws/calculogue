@@ -106,7 +106,7 @@ def number?(v)
 end
 
 def error(message)
-    puts message
+    $stderr.puts message
     exit 1
 end
 
