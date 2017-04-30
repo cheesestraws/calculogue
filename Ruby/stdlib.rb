@@ -116,7 +116,7 @@ $verbs['die'] = ->(c, i, o) do
 end
 
 $verbs['multipop'] = ->(c, i, o) do
-    c.multipop(i)
+    c[o].concat c.multipop(i)
 end
 
 $verbs['load'] = ->(c, i, o) do
