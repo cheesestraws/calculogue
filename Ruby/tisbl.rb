@@ -87,13 +87,9 @@ class Context
     end
 
     def multipop(i)
-        result = []
         count = @stacks[i].pop
         error "Not a number: #{escape(count)}" unless number?(count)
-        count.to_i.times do
-            result.push @stacks[i].pop
-        end
-        result
+        @stacks[i].pop(count).reverse
     end
 end
 
