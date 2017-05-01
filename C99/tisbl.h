@@ -82,7 +82,6 @@ struct TLContext
     TLStack* input;
     TLStack* output;
     TLStack* parent;
-    TLStack* cond;
     TLValue token;
     TLFinal final;
 };
@@ -115,7 +114,7 @@ extern char* tl_append_strings(const char* a, const char* b);
 
 extern TLVM tl_new_vm(TLInputProc* input, TLOutputProc* output, TLStepProc* step, TLPanicProc* panic);
 extern void tl_clear_vm(TLVM* vm);
-extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final);
+extern void tl_push_context(TLVM* vm, TLStack* code, TLStack* input, TLStack* output, TLFinal final);
 extern void tl_pop_context(TLVM* vm);
 extern void tl_execute(TLVM* vm);
 extern TLLoc tl_new_loc(TLVM* vm, const char* file, uint16_t line);
