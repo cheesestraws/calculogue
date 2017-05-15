@@ -114,11 +114,15 @@ def escape(t)
     end
 end
 
+def parse(text)
+    text.gsub(/%.*$/, '').split.reverse
+end
+
 if ARGV.empty?
     root = Context.new
     loop do
         print '> '
-        root[:c].concat gets.gsub(/%.*$/, '').split.reverse
+        root[:c].concat parse(gets)
         root.execute
         puts
     end
@@ -130,7 +134,7 @@ else
     end
     begin
         File.open(ARGV[0]) do |file|
-        Context.new(file.read.gsub(/%.*$/, '').split.reverse).execute
+            Context.new(parse(file.read)).execute
         end
     rescue => e
         error e.message
