@@ -152,17 +152,20 @@ extern void tl_clear_vm(TLVM* vm)
     memset(vm, 0, sizeof(TLVM));
 }
 
-extern void tl_push_context(TLVM* vm, TLStack* execution, TLStack* input, TLStack* output, TLFinal final)
+extern void tl_push_context(TLVM* vm, TLStack* code, TLStack* input, TLStack* output, TLFinal final)
 {
     TLContext* context = calloc(1, sizeof(TLContext));
-    context->input = input;
+    context->input  = input;
     context->output = output;
-    context->final = final;
+    context->final  = final;
 
-    if (execution)
+    if (code)
     {
-        context->execution = *execution;
-        *execution = tl_new_stack();
+        context->execution = *code;
+        *code = tl_new_stack();
+
+        if (final == TL_LOOP)
+            context->loop = tl_clone_stack(&context->execution);
     }
 
     if (vm->ccount)
@@ -456,7 +459,7 @@ extern void tl_execute(TLVM* vm)
             if (context->final == TL_RETURN)
                 return;
 
-            if (context->final == TL_LOOP && tl_pop_bool(vm, context->cond))
+            if (context->final == TL_LOOP && tl_pop_bool(vm, context->input))
             {
                 tl_clear_stack(&context->execution);
                 context->execution = tl_clone_stack(&context->loop);

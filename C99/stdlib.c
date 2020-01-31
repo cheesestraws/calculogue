@@ -145,12 +145,7 @@ static void stdlib_while(TLVM* vm, TLStack* input, TLStack* output)
     tl_multipop(vm, &code, input);
 
     if (tl_pop_bool(vm, input))
-    {
         tl_push_context(vm, &code, input, output, TL_LOOP);
-        TLContext* context = tl_top_context(vm);
-        context->loop = tl_clone_stack(&context->execution);
-        context->cond = input;
-    }
     else
         tl_clear_stack(&code);
 }
